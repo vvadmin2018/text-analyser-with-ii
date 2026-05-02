@@ -21,16 +21,20 @@ class TriangularMembership:
 
         if x <= a_soft or x >= c_soft:
             return 0.001
-        elif x <= self.b:
+        elif x == self.b:
+            return 1.0
+        elif x < self.b:
             if self.b == self.a:
                 return 1.0
-            # Плавный подъем от a_soft до b
-            return (x - a_soft) / (self.b - a_soft)
+            # Плавный подъем от a_soft до b с экспоненциальным сглаживанием
+            ratio = (x - a_soft) / (self.b - a_soft)
+            return ratio ** 0.5  # смягченный подъем (квадратный корень для более высоких значений)
         else:
             if self.c == self.b:
                 return 1.0
-            # Плавный спуск от b до c_soft
-            return (c_soft - x) / (c_soft - self.b)
+            # Плавный спуск от b до c_soft с экспоненциальным сглаживанием
+            ratio = (c_soft - x) / (c_soft - self.b)
+            return ratio ** 0.5  # смягченный спуск (квадратный корень для более высоких значений)
 
     def __repr__(self):
         return f"TriangularMembership(a={self.a:.3f}, b={self.b:.3f}, c={self.c:.3f})"
