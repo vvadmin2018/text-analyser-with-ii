@@ -6,7 +6,10 @@ import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 import string
 import numpy as np
-import pymorphy2
+try:
+    import pymorphy3 as pymorphy2
+except ImportError:
+    import pymorphy2
 import re
 import config
 

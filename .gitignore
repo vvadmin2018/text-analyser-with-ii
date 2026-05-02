@@ -1,4 +1,26 @@
-```gitignore
-__pycache__/
+```
+# Compiled files
+*.pkl
 *.pyc
+__pycache__/
+
+# Output directories
+output/
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Dependencies
+.venv/
+venv/
+node_modules/
 ```
