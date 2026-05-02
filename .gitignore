@@ -1,13 +1,19 @@
-```
-# Compiled files
-*.pkl
+```gitignore
+# Compiled and build artifacts
 *.pyc
 __pycache__/
 
-# Output directories
-output/
+# Dependencies
+.venv/
+venv/
+node_modules/
 
-# Environment files
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment
 .env
 .env.local
 *.env.*
@@ -16,11 +22,57 @@ output/
 .vscode/
 .idea/
 
-# Logs
-*.log
+# Coverage reports
+.coverage
+coverage/
+htmlcov/
 
-# Dependencies
-.venv/
-venv/
-node_modules/
+# Distribution artifacts
+dist/
+build/
+target/
+
+# Python specific
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE specific
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# MyPy cache
+.mypy_cache/
+.pytest_cache/
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 ```
