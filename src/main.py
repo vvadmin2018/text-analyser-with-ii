@@ -238,14 +238,15 @@ def visualize_detailed_results(profiles, anon_features, results, similarity_deta
             author_name, sims, weights, contribs, feature_names_short,
             title=f"Анализ признаков: {author_name} (сходство {results[author_name]:.1%})"
         )
-        plt.savefig(f'./output/feature_importance_{author_name}.png', dpi=150, bbox_inches='tight')
+        plt.savefig(f'{config.OUTPUT_DIR}feature_importance_{author_name}.png', dpi=150, bbox_inches='tight')
         print(f"  ✅ feature_importance_{author_name}.png сохранён")
         plt.close(fig)
 
     # 2. Сравнительная диаграмма авторов
     print("\n  Строим сравнительную диаграмму...")
     fig2 = StyleRose.plot_authors_comparison(results, title="Сравнение уверенности идентификации")
-    plt.savefig('./output/authors_comparison.png', dpi=150, bbox_inches='tight')
+    filename='{config.OUTPUT_DIR}authors_comparison.png'
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
     print("  ✅ authors_comparison.png сохранён")
     plt.show()
 
@@ -290,7 +291,8 @@ def visualize_detailed_results(profiles, anon_features, results, similarity_deta
         authors_data, feature_names_short,
         title="Сравнение профилей авторов (нормализация по признакам)"
     )
-    plt.savefig('./output/feature_heatmap.png', dpi=150, bbox_inches='tight')
+    filename='{config.OUTPUT_DIR}feature_heatmap.png'
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
     print("  ✅ feature_heatmap.png сохранён")
     plt.close(fig3)
     print("\n  ✅ Все графики сохранены!")
@@ -380,7 +382,8 @@ def visualize_results(profiles, anon_features, results):
             title=f"Нечёткая роза ветров: все авторы vs аноним",
             author_colors = author_colors  # передаем цвета
         )
-        plt.savefig('./output/fuzzy_rose_all_authors.png', dpi=150, bbox_inches='tight')
+        filename='{config.OUTPUT_DIR}fuzzy_rose_all_authors.png'
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
         print("\n  ✅ fuzzy_rose_all_authors.png сохранён (все авторы)")
         plt.close(fig_all)
     except Exception as e:
@@ -411,7 +414,7 @@ def visualize_results(profiles, anon_features, results):
             )
 
             # Сохраняем с именем автора
-            filename = f'./output/fuzzy_rose_{author_name}_vs_anon.png'
+            filename = f'{config.OUTPUT_DIR}fuzzy_rose_{author_name}_vs_anon.png'
             plt.savefig(filename, dpi=150, bbox_inches='tight')
             print(f"  ✅ {filename} сохранён (цвет: {author_color})")
             plt.close(fig_single)
@@ -427,7 +430,8 @@ def visualize_results(profiles, anon_features, results):
             feature_names,
             title=f"Классическая роза ветров: все авторы vs аноним"
         )
-        plt.savefig('./output/style_rose_classic.png', dpi=150, bbox_inches='tight')
+        filename = f'{config.OUTPUT_DIR}style_rose_classic.png'
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
         print("  ✅ style_rose_classic.png сохранён (классическая версия)")
         plt.close(fig_classic)
     except Exception as e:
@@ -698,7 +702,7 @@ def main():
                     author_colors={author_name: author_color}
                 )
                 
-                filename = f'./output/{file_basename}_{author_name}_vs_anon.png'
+                filename = f'{config.OUTPUT_DIR}{file_basename}_{author_name}_vs_anon.png'
                 plt.savefig(filename, dpi=150, bbox_inches='tight')
                 print(f"  ✅ {filename}")
                 plt.close(fig_single)
@@ -717,7 +721,7 @@ def main():
                 title=f"Все авторы vs {file_basename}",
                 author_colors=author_colors
             )
-            filename = f'./output/{file_basename}_all_authors.png'
+            filename = f'{config.OUTPUT_DIR}{file_basename}_all_authors.png'
             plt.savefig(filename, dpi=150, bbox_inches='tight')
             print(f"  ✅ {filename}")
             plt.close(fig_all)
@@ -731,7 +735,7 @@ def main():
                     author_name, sims, weights, contribs, feature_names_short,
                     title=f"{author_name}: {file_basename} (сходство {results[author_name]:.1%})"
                 )
-                filename = f'./output/{file_basename}_importance_{author_name}.png'
+                filename = f'{config.OUTPUT_DIR}{file_basename}_importance_{author_name}.png'
                 plt.savefig(filename, dpi=150, bbox_inches='tight')
                 print(f"  ✅ {filename}")
                 plt.close(fig)
@@ -744,7 +748,7 @@ def main():
                 results, 
                 title=f"Сравнение уверенности: {file_basename}"
             )
-            filename = f'./output/{file_basename}_authors_comparison.png'
+            filename = f'{config.OUTPUT_DIR}{file_basename}_authors_comparison.png'
             plt.savefig(filename, dpi=150, bbox_inches='tight')
             print(f"  ✅ {filename}")
             plt.close(fig2)
@@ -782,7 +786,7 @@ def main():
                 authors_data_norm, feature_names_short,
                 title=f"Тепловая карта: {file_basename}"
             )
-            filename = f'./output/{file_basename}_heatmap.png'
+            filename = f'{config.OUTPUT_DIR}{file_basename}_heatmap.png'
             plt.savefig(filename, dpi=150, bbox_inches='tight')
             print(f"  ✅ {filename}")
             plt.close(fig3)
@@ -794,7 +798,7 @@ def main():
     print("\n" + "=" * 60)
     print("✅ ИССЛЕДОВАНИЕ ЗАВЕРШЕНО")
     print("=" * 60)
-    print(f"\n📁 Все графики сохранены в папку ./output/")
+    print(f"\n📁 Все графики сохранены в папку {config.OUTPUT_DIR}")
 
 
 if __name__ == "__main__":

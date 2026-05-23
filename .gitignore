@@ -1,4 +1,6 @@
 ```
+*.png
+*.txt
 # Python
 __pycache__/
 *.pyc

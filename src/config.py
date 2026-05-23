@@ -4,9 +4,9 @@
 LEVEL_LOG = "INFO"
 #LEVEL_LOG = "DEBUG"
 ANONIM_TEXT = "texts/anonim/anonim-8-bulichev-alisa.txt"
-BASE_PATH = "texts/"
+BASE_PATH = "../texts/"
 AUTHORS_LIST = ["pushkin", "lermontov", "tolstoy", "bulichev"]
-OUTPUT_DIR = "output/"
+OUTPUT_DIR = "../output/"
 
 # Параметры анализа
 N_FEATURES = 17
