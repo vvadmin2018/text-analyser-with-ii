@@ -185,7 +185,7 @@ class AuthorProfile:
         import pandas as pd
         
         # Создаем директорию output если не существует
-        output_dir = "/workspace/output"
+        output_dir = config.OUTPUT_DIR_MAIN
         os.makedirs(output_dir, exist_ok=True)
         
         # Создаем поддиректорию с текущей датой и временем
