@@ -43,4 +43,7 @@ htmlcov/
 # OS generated files
 .DS_Store
 Thumbs.db
+*.png
+output/
+output/*/*.png
 ```
