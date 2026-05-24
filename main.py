@@ -1,5 +1,5 @@
 # main.py - Главный файл запуска исследования
-# Запускается командой: python src/main.py
+# Запускается командой: main.py
 import numpy as np
 import os
 import pickle

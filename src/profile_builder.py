@@ -53,7 +53,7 @@ class AuthorProfile:
         texts: список текстов этого автора (каждый текст -> строка)
         """
         import numpy as np
-        from feature_extractor import FeatureExtractor
+        from src.feature_extractor import FeatureExtractor
 
         num_props = config.N_FEATURES
 
