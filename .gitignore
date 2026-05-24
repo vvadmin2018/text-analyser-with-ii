@@ -1,5 +1,6 @@
 ```
 *.png
+output/*.png
 *.txt
 # Python
 __pycache__/
