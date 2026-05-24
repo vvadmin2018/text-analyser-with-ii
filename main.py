@@ -585,6 +585,10 @@ def main():
     print("🕵️  НЕЧЁТКИЙ ДЕТЕКТИВ - Определение авторства текста")
     print("=" * 60)
     
+    # Создаём папку output с timestamp если она не существует
+    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+    print(f"\n📁 Вывод графики будет в папку: {config.OUTPUT_DIR}")
+    
     # ШАГ 1: Пробуем загрузить уже готовые портреты
     profiles = load_profiles()
     

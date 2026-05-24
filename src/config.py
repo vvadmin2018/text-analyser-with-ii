@@ -1,12 +1,18 @@
 # config.py
 # Глобальные настройки для всего проекта
 
+import os
+from datetime import datetime
+
 LEVEL_LOG = "INFO"
 #LEVEL_LOG = "DEBUG"
 ANONIM_TEXT = "texts/anonim/anonim-8-bulichev-alisa.txt"
 BASE_PATH = "texts/"
 AUTHORS_LIST = ["pushkin", "lermontov", "tolstoy", "bulichev"]
-OUTPUT_DIR = "output/"
+
+# Создаём подпапку с timestamp в формате год-месяц-день-час-минута
+timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+OUTPUT_DIR = os.path.join("output", timestamp, "")
 
 # Параметры анализа
 N_FEATURES = 17
