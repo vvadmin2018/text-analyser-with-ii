@@ -1,15 +1,1 @@
-```
-# Compiled and build artifacts
-__pycache__/
-build/
-target/
-.mypy_cache/
-.pytest_cache/
-*.log
-*.tmp
-*.pkl
-output/
-output/*.png
-*.png
-.idea/
-```
+Nothing needs to be added to .gitignore since only a source code file (`main.py`) was modified and there are no build artifacts, dependencies, or temporary files in the changes.
