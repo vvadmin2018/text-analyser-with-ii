@@ -8,7 +8,8 @@ LEVEL_LOG = "INFO"
 #LEVEL_LOG = "DEBUG"
 ANONIM_TEXT = "texts/anonim/anonim-8-bulichev-alisa.txt"
 BASE_PATH = "texts/"
-AUTHORS_LIST = ["pushkin", "lermontov", "tolstoy", "bulichev"]
+#AUTHORS_LIST = ["pushkin", "lermontov", "tolstoy", "bulichev"]
+AUTHORS_LIST = ["pushkin", "tolstoy", "bulichev"]
 
 # Создаём подпапку с timestamp в формате год-месяц-день-час-минута
 timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
