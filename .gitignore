@@ -1,49 +1,35 @@
 ```
-# Compiled and build artifacts
-*.pyc
-__pycache__/
+# Build outputs and generated files
+output/
+*.pkl
 
-# Dependencies
-.venv/
-venv/
-pip-log.txt
-pipenv.lock
-
-# Logs and temp files
+# Logs and temporary files
 *.log
 *.tmp
-*.swp
-*.swo
 
-# Environment
+# Environment files
 .env
 .env.local
-.env.*
+*.env.*
 
-# Editors
+# Editor/IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Coverage
-.coverage
-coverage/
-htmlcov/
-
 # Python specific
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
 *.so
-*.egg-info/
-.eggs/
 
-# OS generated files
-.DS_Store
-Thumbs.db
-*.png
-output/
-output/*/*.png
+# Distribution / packaging
+dist/
+build/
+*.egg
+*.egg-info/
+MANIFEST
 ```

@@ -54,6 +54,7 @@ class AuthorProfile:
         """
         import numpy as np
         from src.feature_extractor import FeatureExtractor
+        import pandas as pd
 
         num_props = config.N_FEATURES
 
@@ -61,6 +62,8 @@ class AuthorProfile:
 
         # Собираем все значения по каждому признаку
         all_values = [[] for _ in range(num_props)]
+        # Собираем значения по текстам для таблицы (строки - тексты, столбцы - признаки)
+        text_features_matrix = []
 
         extractor = FeatureExtractor()
 
@@ -79,6 +82,9 @@ class AuthorProfile:
 
                 # Проверяем, что признаки извлечены правильно
                 if len(features) == num_props:
+                    # Сохраняем признаки для таблицы
+                    text_features_matrix.append(features.tolist())
+                    
                     for i, val in enumerate(features):
                         all_values[i].append(val)
                     print(f"    Значения: {[f'{v:.3f}' for v in features[:5]]}...")
@@ -94,6 +100,48 @@ class AuthorProfile:
             print(f"    Признак {i}: {len(all_values[i])} значений")
             if all_values[i]:
                 print(f"      min={min(all_values[i]):.3f}, max={max(all_values[i]):.3f}")
+
+        # ===== ПОСТРОЕНИЕ СВОДНОЙ ТАБЛИЦЫ =====
+        if text_features_matrix:
+            print(f"\n  📊 Сводная таблица признаков для автора '{self.name}':")
+            
+            # Создаем DataFrame: строки - тексты, столбцы - признаки
+            df = pd.DataFrame(text_features_matrix, columns=config.FEATURE_LIST)
+            
+            # Добавляем номер текста
+            df.insert(0, 'Текст №', range(1, len(df) + 1))
+            
+            # Вычисляем среднее и медиану по каждому признаку (для всех текстов)
+            mean_values = [round(np.mean(all_values[i]), 3) if all_values[i] else 0 for i in range(num_props)]
+            median_values = [round(np.median(all_values[i]), 3) if all_values[i] else 0 for i in range(num_props)]
+            
+            # Добавляем строки со средним и медианой
+            mean_row = ['Среднее'] + mean_values
+            median_row = ['Медиана'] + median_values
+            
+            # Форматируем все числовые значения до 3 знаков после запятой
+            df_formatted = df.copy()
+            for col in config.FEATURE_LIST:
+                df_formatted[col] = df_formatted[col].apply(lambda x: round(x, 3))
+            
+            # Выводим таблицу
+            print("\n  " + "=" * (len(config.FEATURE_LIST) * 12 + 15))
+            print(df_formatted.to_string(index=False))
+            print("  " + "-" * (len(config.FEATURE_LIST) * 12 + 15))
+            print(f"  Среднее:  {'  '.join([f'{v:>10}' for v in mean_values])}")
+            print(f"  Медиана:  {'  '.join([f'{v:>10}' for v in median_values])}")
+            print("  " + "=" * (len(config.FEATURE_LIST) * 12 + 15))
+            
+            # Сохраняем статистику в объекте профиля для дальнейшего использования
+            self.feature_stats = {
+                'mean': mean_values,
+                'median': median_values,
+                'text_count': len(texts),
+                'dataframe': df_formatted
+            }
+            
+            # ===== СОХРАНЕНИЕ ТАБЛИЦЫ В OUTPUT =====
+            self._save_summary_table(df_formatted, mean_values, median_values)
 
         # Строим треугольные функции
         self.features = []
@@ -122,6 +170,93 @@ class AuthorProfile:
 
         print(f"  ✅ Портрет для {self.name} построен! Всего функций: {len(self.features)}")
         return self.features
+
+    def _save_summary_table(self, df_formatted, mean_values, median_values):
+        """
+        Сохраняет сводную таблицу признаков в output в форматах HTML и TXT
+        
+        Args:
+            df_formatted: DataFrame с данными по текстам
+            mean_values: список средних значений по признакам
+            median_values: список медианных значений по признакам
+        """
+        import os
+        from datetime import datetime
+        import pandas as pd
+        
+        # Создаем директорию output если не существует
+        output_dir = "/workspace/output"
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Создаем поддиректорию с текущей датой и временем
+        timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+        author_dir = os.path.join(output_dir, f"{timestamp}_{self.name}")
+        os.makedirs(author_dir, exist_ok=True)
+        
+        # Добавляем строки со средним и медианой в DataFrame для сохранения
+        df_with_stats = df_formatted.copy()
+        
+        # Создаем строку среднего
+        mean_row_dict = {'Текст №': 'Среднее'}
+        for i, col in enumerate(config.FEATURE_LIST):
+            mean_row_dict[col] = mean_values[i]
+        
+        # Создаем строку медианы
+        median_row_dict = {'Текст №': 'Медиана'}
+        for i, col in enumerate(config.FEATURE_LIST):
+            median_row_dict[col] = median_values[i]
+        
+        # Добавляем строки в DataFrame
+        mean_row_df = pd.DataFrame([mean_row_dict])
+        median_row_df = pd.DataFrame([median_row_dict])
+        df_with_stats = pd.concat([df_with_stats, mean_row_df, median_row_df], ignore_index=True)
+        
+        # Сохраняем в HTML
+        html_file = os.path.join(author_dir, f"{self.name}_summary.html")
+        html_content = f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Сводная таблица признаков - {self.name}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        h1 {{ color: #333; }}
+        table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
+        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: center; }}
+        th {{ background-color: #4CAF50; color: white; }}
+        tr:nth-child(even) {{ background-color: #f2f2f2; }}
+        tr:hover {{ background-color: #ddd; }}
+        .stats-row {{ font-weight: bold; background-color: #e7f3ff; }}
+        .header-row {{ background-color: #4CAF50; color: white; }}
+    </style>
+</head>
+<body>
+    <h1>📊 Сводная таблица признаков автора: {self.name}</h1>
+    <p>Количество текстов: {len(df_formatted)}</p>
+    <p>Дата генерации: {datetime.now().strftime("%d.%m.%Y %H:%M")}</p>
+    {df_with_stats.to_html(index=False, classes='data-table', na_rep="N/A")}
+</body>
+</html>"""
+        
+        with open(html_file, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        # Сохраняем в TXT
+        txt_file = os.path.join(author_dir, f"{self.name}_summary.txt")
+        with open(txt_file, 'w', encoding='utf-8') as f:
+            f.write(f"Сводная таблица признаков автора: {self.name}\n")
+            f.write(f"Количество текстов: {len(df_formatted)}\n")
+            f.write(f"Дата генерации: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n")
+            f.write("=" * (len(config.FEATURE_LIST) * 12 + 15) + "\n\n")
+            
+            # Вывод таблицы в текстовом формате
+            f.write(df_with_stats.to_string(index=False))
+            f.write("\n\n")
+            
+            f.write("=" * (len(config.FEATURE_LIST) * 12 + 15) + "\n")
+            f.write("Примечание: все значения округлены до 3 знаков после запятой\n")
+        
+        print(f"  💾 Таблица сохранена в:\n     HTML: {html_file}\n     TXT:  {txt_file}")
 
     def get_weights(self):
         """
