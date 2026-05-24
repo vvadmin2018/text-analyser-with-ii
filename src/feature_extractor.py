@@ -164,11 +164,23 @@ class FeatureExtractor:
         # ===== Группа Б: Лексические признаки =====
 
         # Б1: Лексическое богатство (TTR - type-token ratio)
+        #unique_words = set(words)
+
+        #if config.LEVEL_LOG == "DEBUG":
+        #    print(f"DEBUGPRINT    Б1: Лексическое богатство {len(unique_words) / len(words)}")
+        #features.append(len(unique_words) / len(words))  # Б1
+
+        # Б1: Лексическое богатство (RTTR - root type-token ratio)
         unique_words = set(words)
+        total_words = len(words)
+
+        # RTTR = types / sqrt(tokens)
+        rttr = len(unique_words) / (total_words ** 0.5)
 
         if config.LEVEL_LOG == "DEBUG":
-            print(f"DEBUGPRINT    Б1: Лексическое богатство {len(unique_words) / len(words)}")
-        features.append(len(unique_words) / len(words))  # Б1
+            print(
+                f"DEBUGPRINT    Б1: Лексическое богатство RTTR = {rttr:.4f} (types={len(unique_words)}, tokens={total_words})")
+        features.append(rttr)  # Б1
 
         # ===== МОРФОЛОГИЧЕСКИЙ АНАЛИЗ С ПОМОЩЬЮ PYMORPHY2 =====
         # Счетчики для частей речи
