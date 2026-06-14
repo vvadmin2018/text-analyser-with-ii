@@ -67,6 +67,9 @@ section[data-testid="stSidebar"] {
 .stTextArea textarea, .stSelectbox > div, .stSelectbox [data-baseweb="select"] span {
     background-color: #262730 !important; color: #fafafa !important;
 }
+.stTextArea label, .stSelectbox label, label, .stCheckbox label {
+    color: #fafafa !important;
+}
 .stSelectbox [data-baseweb="select"] svg { fill: #fafafa !important; }
 .stSelectbox [data-baseweb="popover"] { background-color: #1e2028 !important; }
 .stSelectbox [data-baseweb="popover"] li { color: #fafafa !important; }
