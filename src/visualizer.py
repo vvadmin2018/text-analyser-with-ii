@@ -428,9 +428,14 @@ class StyleRose:
         ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
         ax.grid(True, axis='y', linestyle='--', alpha=0.3)
 
-        ax.axhline(y=0.3, color='orange', linestyle=':', alpha=0.5, label='Низкая уверенность')
-        ax.axhline(y=0.6, color='green', linestyle=':', alpha=0.5, label='Хорошая уверенность')
-        ax.axhline(y=0.8, color='darkgreen', linestyle=':', alpha=0.5, label='Высокая уверенность')
+        #ax.axhline(y=0.3, color='orange', linestyle=':', alpha=0.5, label='Низкая уверенность')
+        #ax.axhline(y=0.6, color='green', linestyle=':', alpha=0.5, label='Хорошая уверенность')
+        #ax.axhline(y=0.8, color='darkgreen', linestyle=':', alpha=0.5, label='Высокая уверенность')
+
+        # Цветные зоны вместо линий
+        #ax.axhspan(0, 0.3, color='red', alpha=0.05, label='Низкая уверенность')
+        #ax.axhspan(0.3, 0.6, color='orange', alpha=0.05, label='Средняя уверенность')
+        #ax.axhspan(0.6, 1.0, color='green', alpha=0.05, label='Высокая уверенность')
 
         ax.legend(loc='upper right')
 

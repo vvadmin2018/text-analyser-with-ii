@@ -43,6 +43,8 @@ class FeatureExtractor:
         """
         self.language = language
 
+        print("DEBUG: " + self.language)
+
         # Загружаем стоп-слова в зависимости от языка
         if language == Language.RUSSIAN:
             self.stopwords = set(nltk.corpus.stopwords.words('russian'))
@@ -52,6 +54,7 @@ class FeatureExtractor:
 
         # Инициализируем морфологический анализатор
         if PY_MORPHY_AVAILABLE:
+            print("DEBUG: Используем pymorphy2")
             self.morph = pymorphy2.MorphAnalyzer()
         else:
             self.morph = None
@@ -130,6 +133,7 @@ class FeatureExtractor:
             try:
                 parsed = self.morph.parse(word)[0]
                 pos = parsed.tag.POS
+                print("DEBUG: " + pos + " для " + parsed)
                 if pos and pos in pos_counts:
                     pos_counts[pos] += 1
                 if pos in ['NOUN', 'VERB', 'INFN', 'GRND', 'PRTF', 'ADJF']:
@@ -216,6 +220,7 @@ class FeatureExtractor:
         for sent in doc.sentences:
             for word in sent.words:
                 pos = word.upos
+                print("DEBUG: " + pos + " для " + word)
                 if pos == 'NOUN':
                     nouns += 1
                     words_main.append(word.text)
@@ -318,6 +323,7 @@ class FeatureExtractor:
         unique_words = set(words)
         rttr = len(unique_words) / (len(words) ** 0.5)
         features.append(rttr)
+        print("DEBUG: Группа Б: Лексические признаки")
 
         # ===== Морфологический анализ (выбор метода по языку) =====
         if self.language == Language.BELARUSIAN and STANZA_AVAILABLE:
@@ -326,6 +332,9 @@ class FeatureExtractor:
             nouns, verbs, adjs, conjs, preps, total_words, words_main = self._analyze_with_pymorphy(words_original)
 
         # Б2-Б5: Части речи и длина слова
+        print("DEBUG: сущ "+ str(nouns))
+        print("DEBUG: total " + str(total_words))
+              #+ "глаголы "+ verbs + " " + adjs + " " +  conjs + " " +  preps + " " +  total_words + " " +  words_main)
         features.append(nouns / total_words if total_words > 0 else 0)  # Б2
         features.append(verbs / total_words if total_words > 0 else 0)  # Б3
         features.append(adjs / total_words if total_words > 0 else 0)  # Б4
@@ -344,4 +353,5 @@ class FeatureExtractor:
         result = np.array(features)
         result = np.nan_to_num(result, nan=0.0, posinf=0.0, neginf=0.0)
 
+        print(result)
         return result

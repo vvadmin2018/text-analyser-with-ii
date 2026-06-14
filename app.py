@@ -26,7 +26,7 @@ LANG_OPTIONS = {
         "authors": config.RUSSIAN_AUTHORS_LIST,
         "pickle": "authors_profiles_ru.pkl",
     },
-    "Беларуская": {
+    "Белорусский": {
         "lang": Language.BELARUSIAN,
         "authors": config.BELARUSIAN_AUTHORS_LIST,
         "pickle": "authors_profiles_be.pkl",
@@ -273,14 +273,15 @@ with col_charts:
         feature_names = config.FEATURE_LIST_SHORT
         author_color = config.AUTHOR_COLORS.get(best_author, config.AUTHOR_COLORS['default'])
 
-        st.subheader("📊 Графики")
+        st.subheader("")
+                     #"📊 Графики")
 
         ts = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         out_dir = os.path.join("output", ts, "")
         os.makedirs(out_dir, exist_ok=True)
 
         fig1 = StyleRose.plot_authors_comparison(
-            results, title=f"Сравнение уверенности — {lang_name}"
+            results, title=f"Схожесть с авторами"
         )
         fig1.set_size_inches(5, 3)
         fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
