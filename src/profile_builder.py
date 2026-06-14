@@ -1,5 +1,5 @@
 import numpy as np
-from src.feature_extractor import FeatureExtractor
+from src.feature_extractor import FeatureExtractor, Language
 from src import config
 
 
@@ -48,12 +48,12 @@ class AuthorProfile:
         self.features = []  # список функций принадлежности
         self.feature_names = config.FEATURE_LIST
 
-    def build_from_texts(self, texts):
+    def build_from_texts(self, texts, language=None):
         """
         texts: список текстов этого автора (каждый текст -> строка)
+        language: язык для FeatureExtractor (None = русский)
         """
         import numpy as np
-        from src.feature_extractor import FeatureExtractor
         import pandas as pd
 
         num_props = config.N_FEATURES
@@ -65,7 +65,7 @@ class AuthorProfile:
         # Собираем значения по текстам для таблицы (строки - тексты, столбцы - признаки)
         text_features_matrix = []
 
-        extractor = FeatureExtractor()
+        extractor = FeatureExtractor(language=language or Language.RUSSIAN)
 
         for text_idx, text in enumerate(texts):
             print(f"  Обработка текста {text_idx + 1}/{len(texts)}...")

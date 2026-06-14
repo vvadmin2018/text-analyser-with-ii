@@ -10,6 +10,18 @@ ANONIM_TEXT = "texts/anonim/anonim-8-bulichev-alisa.txt"
 BASE_PATH = "texts/"
 #AUTHORS_LIST = ["pushkin", "lermontov", "tolstoy", "bulichev"]
 AUTHORS_LIST = ["pushkin", "tolstoy", "bulichev"]
+RUSSIAN_AUTHORS_LIST = ["pushkin", "tolstoy", "bulichev"]
+BELARUSIAN_AUTHORS_LIST = ["kolas", "maur", "bryl"]
+AUTHORS_LIST = RUSSIAN_AUTHORS_LIST  # backward compat
+
+AUTHOR_LABELS = {
+    'pushkin': 'Пушкин',
+    'tolstoy': 'Толстой',
+    'bulichev': 'Булычёв',
+    'kolas': 'Колас',
+    'maur': 'Маўр',
+    'bryl': 'Брыль',
+}
 OUTPUT_DIR_MAIN = "output/"
 
 # Создаём подпапку с timestamp в формате год-месяц-день-час-минута
@@ -57,6 +69,9 @@ AUTHOR_COLORS = {
     'lermontov': '#4B7BFF',    # ярко-синий
     'tolstoy': '#FFB44B',      # оранжевый
     'bulichev': '#FF4BFF',     # розовый
+    'kolas': '#2E8B57',        # зелёный
+    'maur': '#8B4513',         # коричневый
+    'bryl': '#4169E1',         # синий
     'default': '#4B7BFF'       # синий по умолчанию
 }
 
