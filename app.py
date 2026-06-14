@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import sys
+from datetime import datetime
 
 nltk.download('punkt', quiet=True)
 nltk.download('punkt_tab', quiet=True)
@@ -274,10 +275,15 @@ with col_charts:
 
         st.subheader("📊 Графики")
 
+        ts = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        out_dir = os.path.join("output", ts, "")
+        os.makedirs(out_dir, exist_ok=True)
+
         fig1 = StyleRose.plot_authors_comparison(
             results, title=f"Сравнение уверенности — {lang_name}"
         )
         fig1.set_size_inches(5, 3)
+        fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
         st.pyplot(fig1, use_container_width=True)
         plt.close(fig1)
 
@@ -291,5 +297,6 @@ with col_charts:
             author_colors={best_author: author_color}
         )
         fig2.set_size_inches(5, 3.5)
+        fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
         st.pyplot(fig2, use_container_width=True)
         plt.close(fig2)
