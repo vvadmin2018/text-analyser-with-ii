@@ -67,7 +67,13 @@ section[data-testid="stSidebar"] {
 .stTextArea textarea, .stSelectbox > div, .stSelectbox [data-baseweb="select"] span {
     background-color: #262730 !important; color: #fafafa !important;
 }
-.stTextArea label, .stSelectbox label, label, .stCheckbox label {
+.stTextArea label, .stSelectbox label, .stCheckbox label,
+section[data-testid="stSidebar"] label,
+[data-testid="stCheckbox"] label, [data-testid="stCheckbox"] span {
+    color: #fafafa !important;
+}
+.stMarkdown, .stSubheader, .stHeader, h1, h2, h3, h4,
+[data-testid="stHeading"] {
     color: #fafafa !important;
 }
 .stSelectbox [data-baseweb="select"] svg { fill: #fafafa !important; }
