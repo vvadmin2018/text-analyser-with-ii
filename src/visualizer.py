@@ -246,9 +246,9 @@ class StyleRose:
         plt.title("\n\n" + title + "\n(размытые сектора показывают вариативность стиля авторов)",
                   size=14, fontweight='bold', pad=20)
 
-        plt.legend(loc='upper right', bbox_to_anchor=(1.6, 1.0),
-                   frameon=True, fancybox=True, shadow=True, fontsize=9,
-                   framealpha=0.4)
+        plt.legend(loc='upper right', bbox_to_anchor=(2.0, 1.0),
+                   frameon=True, fancybox=True, shadow=False, fontsize=9,
+                   framealpha=0.8)
 
         plt.tight_layout()
         return fig
