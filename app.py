@@ -287,6 +287,30 @@ with col_charts:
         st.pyplot(fig1, use_container_width=True)
         plt.close(fig1)
 
+        for author_name in profiles:
+            single_dict = {author_name: authors_for_plot[author_name]}
+            single_disp = {author_name: authors_dispersion[author_name]}
+            author_color = config.AUTHOR_COLORS.get(author_name, config.AUTHOR_COLORS['default'])
+            score = results[author_name]
+            fig = StyleRose.plot_fuzzy_rose(
+                single_dict, anon_features, feature_names,
+                profiles_dispersion=single_disp,
+                anonymous_dispersion=anon_dispersion,
+                title=f"{author_display(author_name)} vs аноним ({score:.1%})",
+                author_colors={author_name: author_color}
+            )
+            fig.set_size_inches(5, 3.5)
+            fig.savefig(os.path.join(out_dir, f"{author_name}_vs_anon.png"), dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
+        for author_name, (sims, weights, contribs) in r["similarity_details"].items():
+            fig = StyleRose.plot_feature_importance(
+                author_display(author_name), sims, weights, contribs, config.FEATURE_LIST_SHORT,
+                title=f"Важность признаков: {author_display(author_name)} ({results[author_name]:.1%})"
+            )
+            fig.savefig(os.path.join(out_dir, f"feature_importance_{author_name}.png"), dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
         single_dict = {best_author: authors_for_plot[best_author]}
         single_disp = {best_author: authors_dispersion[best_author]}
         fig2 = StyleRose.plot_fuzzy_rose(
