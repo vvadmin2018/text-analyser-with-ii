@@ -51,7 +51,7 @@ st.markdown("""
 <div class="ghost-float">👻</div>
 """, unsafe_allow_html=True)
 
-st.title("🪶")
+st.title("🪶 GhostQuill")
 
 if "profiles" not in st.session_state:
     st.session_state.profiles = None
