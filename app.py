@@ -61,16 +61,24 @@ DARK_EXTRA = ("""
 .stApp { background-color: #0e1117; color: #fafafa; }
 .stApp > header { background-color: transparent; }
 section[data-testid="stSidebar"] { background-color: #1e2028; }
-.stTextArea textarea, .stSelectbox > div {
+.stTextArea textarea, .stSelectbox > div, .stSelectbox [data-baseweb="select"] span {
     background-color: #262730 !important; color: #fafafa !important;
 }
-.stButton button { background-color: #262730; color: #fafafa; border-color: #555; }
+.stSelectbox [data-baseweb="select"] svg { fill: #fafafa !important; }
+.stSelectbox [data-baseweb="popover"] { background-color: #1e2028 !important; }
+.stSelectbox [data-baseweb="popover"] li { color: #fafafa !important; }
+.stSelectbox [data-baseweb="popover"] li:hover { background-color: #363840 !important; }
+.stButton button { background-color: #262730; color: #fafafa !important; border-color: #555; }
 .stButton button:hover { background-color: #363840; border-color: #777; }
-.stMarkdown, p, label, .stSubheader, .stHeader, .st-bb { color: #fafafa !important; }
+.stMarkdown, p, label, .stSubheader, .stHeader, .st-bb, section[data-testid="stSidebar"] .stMarkdown, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stSubheader { color: #fafafa !important; }
 .stAlert { background-color: #262730; color: #fafafa; border-color: #555; }
 .st-bx, .st-cx { background-color: #1e2028; }
 .st-at { background-color: #262730; }
 .st-c6 { color: #fafafa; }
+[data-testid="stMainMenu"] { color: #fafafa !important; }
+[data-testid="stMainMenu"] svg { fill: #fafafa !important; }
+[data-testid="stToolbar"] button svg { fill: #fafafa !important; }
+.stTextArea textarea::placeholder { color: #aaa !important; }
 </style>
 """ if st.session_state.dark_mode else "")
 
@@ -102,7 +110,7 @@ h1 {{
 <div class="ghost-fly">👻</div>
 """, unsafe_allow_html=True)
 
-st.title("🪶")
+st.title("🪶 GhostQuill")
 
 
 def compute_plot_data(profiles, anon_features):
