@@ -8,6 +8,7 @@ import os
 import sys
 
 nltk.download('punkt', quiet=True)
+nltk.download('punkt_tab', quiet=True)
 nltk.download('stopwords', quiet=True)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
