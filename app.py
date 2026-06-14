@@ -59,7 +59,10 @@ profile_path = lang_cfg["pickle"]
 DARK_EXTRA = ("""
 <style>
 .stApp { background-color: #0e1117; }
-.stApp > header { background-color: #0e1117 !important; }
+.stApp > header, [data-testid="stDecoration"], .stApp > header::before {
+    background-color: #0e1117 !important;
+    background-image: none !important;
+}
 section[data-testid="stSidebar"] {
     background-color: #1e2028 !important;
     color: #fafafa !important;
