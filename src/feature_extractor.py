@@ -220,7 +220,7 @@ class FeatureExtractor:
         for sent in doc.sentences:
             for word in sent.words:
                 pos = word.upos
-                print("DEBUG: " + pos + " для " + word)
+                print("DEBUG: " + pos + " для " + str(word))
                 if pos == 'NOUN':
                     nouns += 1
                     words_main.append(word.text)
