@@ -12,13 +12,8 @@ try:
 
     PY_MORPHY_AVAILABLE = True
 except ImportError:
-    try:
-        import pymorphy2
-
-        PY_MORPHY_AVAILABLE = True
-    except ImportError:
-        PY_MORPHY_AVAILABLE = False
-        print("⚠️ pymorphy2/pymorphy3 не установлен. Морфологический анализ будет ограничен.")
+    PY_MORPHY_AVAILABLE = False
+    print("⚠️ pymorphy2/pymorphy3 не установлен. Морфологический анализ будет ограничен.")
 
 # Stanza для белорусского языка
 try:
@@ -120,6 +115,9 @@ class FeatureExtractor:
 
     def _analyze_with_pymorphy(self, words_original):
         """Анализ текста с помощью pymorphy2 (для русского языка)"""
+        if self.morph is None:
+            return self._analyze_fallback(words_original)
+
         pos_counts = {
             'NOUN': 0, 'ADJF': 0, 'ADJS': 0, 'VERB': 0, 'INFN': 0,
             'PRTS': 0, 'PRTF': 0, 'GRND': 0, 'NUMR': 0, 'ADVB': 0,
@@ -157,6 +155,47 @@ class FeatureExtractor:
 
         conj_total = max(conj_total, conj_by_dict)
         prep_total = max(prep_total, prep_by_dict)
+
+        # Если pymorphy не распознал ни одного слова — используем fallback
+        if total > 0 and nouns == 0 and verbs == 0 and adjs == 0 and len(words_main) == 0:
+            return self._analyze_fallback(words_original)
+
+        return nouns, verbs, adjs, conj_total, prep_total, total, words_main
+
+    def _analyze_fallback(self, words_original):
+        """Fallback: оценка частей речи по суффиксам и словарям"""
+        total = len(words_original)
+        if total == 0:
+            return 0, 0, 0, 0, 0, 0, []
+
+        conj_total = sum(1 for w in words_original if w.lower() in self.conjunctions)
+        prep_total = sum(1 for w in words_original if w.lower() in self.prepositions)
+
+        nouns = 0
+        verbs = 0
+        adjs = 0
+        words_main = []
+
+        for w in words_original:
+            wl = w.lower()
+            if len(wl) <= 2 or wl in self.stopwords:
+                continue
+
+            # Существительные: частые окончания
+            if any(wl.endswith(s) for s in ('а', 'я', 'о', 'е', 'ы', 'и', 'у', 'ю', 'ь', 'й', 'ам', 'ах', 'ей', 'ям', 'ях', 'ой')):
+                nouns += 1
+                words_main.append(w)
+            # Глаголы: окончания
+            elif any(wl.endswith(s) for s in ('ть', 'ти', 'чь', 'ться', 'тся', 'л', 'ла', 'ли', 'ло', 'ет', 'ют', 'ит', 'ат', 'ят')):
+                verbs += 1
+                words_main.append(w)
+            # Прилагательные: окончания
+            elif any(wl.endswith(s) for s in ('ый', 'ий', 'ой', 'ая', 'яя', 'ое', 'ее', 'ые', 'ие', 'ым', 'им', 'ых', 'их')):
+                adjs += 1
+                words_main.append(w)
+            else:
+                nouns += 1
+                words_main.append(w)
 
         return nouns, verbs, adjs, conj_total, prep_total, total, words_main
 
@@ -230,11 +269,14 @@ class FeatureExtractor:
         sentences_primaya_rech = [s for s in sentences if s.startswith('–') or s.startswith('—')]
 
         # Токенизация слов
+        def keep_word(w):
+            return w not in string.punctuation and any(c.isalpha() for c in w)
+
         words = word_tokenize(text.lower())
-        words = [w for w in words if w not in string.punctuation and w.isalpha()]
+        words = [w for w in words if keep_word(w)]
 
         words_original = word_tokenize(text)
-        words_original = [w for w in words_original if w not in string.punctuation and w.isalpha()]
+        words_original = [w for w in words_original if keep_word(w)]
 
         if len(words) == 0 or len(sentences) == 0:
             return np.zeros(num_props)
@@ -247,7 +289,7 @@ class FeatureExtractor:
         sent_lengths = []
         for sent in sentences_without_primaya_rech:
             sent_words = word_tokenize(sent)
-            sent_words = [w for w in sent_words if w not in string.punctuation and w.isalpha()]
+            sent_words = [w for w in sent_words if w not in string.punctuation and any(c.isalpha() for c in w)]
             sent_lengths.append(len(sent_words))
 
         features.append(np.median(sent_lengths))  # A1
