@@ -33,26 +33,57 @@ LANG_OPTIONS = {
 
 st.set_page_config(page_title="GhostQuill", layout="wide")
 
-st.markdown("""
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+
+BASE_CSS = """
 <style>
-@keyframes float {
-    0% { transform: translateY(0px) rotate(-3deg); }
-    50% { transform: translateY(-20px) rotate(3deg); }
-    100% { transform: translateY(0px) rotate(-3deg); }
+@keyframes fly {
+    0% { transform: translateX(0px) translateY(0px); }
+    25% { transform: translateX(50px) translateY(-12px); }
+    50% { transform: translateX(0px) translateY(0px); }
+    75% { transform: translateX(-50px) translateY(-12px); }
+    100% { transform: translateX(0px) translateY(0px); }
 }
-.ghost-float {
-    animation: float 4s ease-in-out infinite;
+.ghost-fly {
+    animation: fly 5s ease-in-out infinite;
     font-size: 64px;
     text-align: center;
     display: block;
-    margin-bottom: -10px;
+    line-height: 1;
     cursor: default;
+    margin-bottom: -30px;
+    margin-top: -20px;
+}
+h1 {
+    margin-top: -24px !important;
+    padding-top: 0 !important;
 }
 </style>
-<div class="ghost-float">👻</div>
-""", unsafe_allow_html=True)
+<div class="ghost-fly">👻</div>
+"""
 
-st.title("🪶 GhostQuill")
+DARK_CSS = ("""
+<style>
+.stApp { background-color: #0e1117; color: #fafafa; }
+.stApp > header { background-color: transparent; }
+section[data-testid="stSidebar"] { background-color: #1e2028; }
+.stTextArea textarea, .stSelectbox > div {
+    background-color: #262730 !important; color: #fafafa !important;
+}
+.stButton button { background-color: #262730; color: #fafafa; border-color: #555; }
+.stButton button:hover { background-color: #363840; border-color: #777; }
+.stMarkdown, p, label, .stSubheader, .stHeader, .st-bb { color: #fafafa !important; }
+.stAlert { background-color: #262730; color: #fafafa; border-color: #555; }
+.st-bx, .st-cx { background-color: #1e2028; }
+.st-at { background-color: #262730; }
+.st-c6 { color: #fafafa; }
+</style>
+""" if st.session_state.dark_mode else "")
+
+st.markdown(BASE_CSS + DARK_CSS, unsafe_allow_html=True)
+
+st.title("🪶")
 
 if "profiles" not in st.session_state:
     st.session_state.profiles = None
@@ -62,6 +93,7 @@ if "results" not in st.session_state:
     st.session_state.results = None
 
 st.sidebar.header("Настройки")
+st.session_state.dark_mode = st.sidebar.checkbox("🌙 Тёмная тема", value=st.session_state.dark_mode)
 lang_name = st.sidebar.selectbox("Язык анализа", list(LANG_OPTIONS.keys()))
 lang_cfg = LANG_OPTIONS[lang_name]
 cur_lang = lang_cfg["lang"]
