@@ -1,11 +1,13 @@
 import streamlit as st
+import nltk
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import sys
-import io
+
+nltk.download('punkt', quiet=True)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -29,7 +31,27 @@ LANG_OPTIONS = {
 }
 
 st.set_page_config(page_title="GhostQuill", layout="wide")
-st.title("👻 GhostQuill 🪶 — ")
+
+st.markdown("""
+<style>
+@keyframes float {
+    0% { transform: translateY(0px) rotate(-3deg); }
+    50% { transform: translateY(-20px) rotate(3deg); }
+    100% { transform: translateY(0px) rotate(-3deg); }
+}
+.ghost-float {
+    animation: float 4s ease-in-out infinite;
+    font-size: 64px;
+    text-align: center;
+    display: block;
+    margin-bottom: -10px;
+    cursor: default;
+}
+</style>
+<div class="ghost-float">👻</div>
+""", unsafe_allow_html=True)
+
+st.title("🪶")
 
 if "profiles" not in st.session_state:
     st.session_state.profiles = None
@@ -189,20 +211,12 @@ with col_charts:
         author_color = config.AUTHOR_COLORS.get(best_author, config.AUTHOR_COLORS['default'])
 
         st.subheader("📊 Графики")
-        st.caption("Нажмите ▲ чтобы развернуть")
 
         fig1 = StyleRose.plot_authors_comparison(
             results, title=f"Сравнение уверенности — {lang_name}"
         )
-        fig1.set_size_inches(4, 3)
+        fig1.set_size_inches(5, 3)
         st.pyplot(fig1, use_container_width=True)
-        with st.expander("🔍 Увеличить"):
-            fig1b = StyleRose.plot_authors_comparison(
-                results, title=f"Сравнение уверенности — {lang_name}"
-            )
-            fig1b.set_size_inches(8, 5)
-            st.pyplot(fig1b, use_container_width=True)
-            plt.close(fig1b)
         plt.close(fig1)
 
         single_dict = {best_author: authors_for_plot[best_author]}
@@ -214,17 +228,6 @@ with col_charts:
             title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
             author_colors={best_author: author_color}
         )
-        fig2.set_size_inches(4, 3)
+        fig2.set_size_inches(5, 3.5)
         st.pyplot(fig2, use_container_width=True)
-        with st.expander("🔍 Увеличить"):
-            fig2b = StyleRose.plot_fuzzy_rose(
-                single_dict, anon_features, feature_names,
-                profiles_dispersion=single_disp,
-                anonymous_dispersion=anon_dispersion,
-                title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
-                author_colors={best_author: author_color}
-            )
-            fig2b.set_size_inches(8, 6)
-            st.pyplot(fig2b, use_container_width=True)
-            plt.close(fig2b)
         plt.close(fig2)
