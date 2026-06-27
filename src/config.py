@@ -10,14 +10,16 @@ ANONIM_TEXT = "texts/anonim/anonim-8-bulichev-alisa.txt"
 BASE_PATH = "texts/"
 #AUTHORS_LIST = ["pushkin", "lermontov", "tolstoy", "bulichev"]
 AUTHORS_LIST = ["pushkin", "tolstoy", "bulichev"]
-RUSSIAN_AUTHORS_LIST = ["pushkin", "tolstoy", "bulichev"]
+RUSSIAN_AUTHORS_LIST = ["pushkin", "tolstoy", "bulichev", "drugkov", "saharnov"]
 BELARUSIAN_AUTHORS_LIST = ["kolas", "maur", "bryl"]
 AUTHORS_LIST = RUSSIAN_AUTHORS_LIST  # backward compat
 
 AUTHOR_LABELS = {
     'pushkin': 'Пушкин',
     'tolstoy': 'Толстой',
-    'bulichev': 'Булычёв',
+    'bulichev': 'Кир Булычёв',
+    'drugkov': 'Юрий Дружков (Постников)',
+    'saharnov': 'Святослав Сахарнов',
     'kolas': 'Колас',
     'maur': 'Маўр',
     'bryl': 'Брыль',
