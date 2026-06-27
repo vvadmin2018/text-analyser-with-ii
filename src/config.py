@@ -9,8 +9,8 @@ LEVEL_LOG = "INFO"
 ANONIM_TEXT = "texts/anonim/anonim-8-bulichev-alisa.txt"
 BASE_PATH = "texts/"
 #AUTHORS_LIST = ["pushkin", "lermontov", "tolstoy", "bulichev"]
-AUTHORS_LIST = ["pushkin", "tolstoy", "bulichev"]
-RUSSIAN_AUTHORS_LIST = ["pushkin", "tolstoy", "bulichev", "drugkov", "saharnov"]
+AUTHORS_LIST = ["pushkin", "tolstoy", "bulichev", "drugkov", "saharnov"]
+RUSSIAN_AUTHORS_LIST = ["bulichev", "drugkov", "saharnov"]
 BELARUSIAN_AUTHORS_LIST = ["kolas", "maur", "bryl"]
 AUTHORS_LIST = RUSSIAN_AUTHORS_LIST  # backward compat
 
