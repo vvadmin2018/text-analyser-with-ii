@@ -166,6 +166,12 @@ if st.session_state.profiles is None:
         st.sidebar.success("Загружены профили:")
         for name in profiles:
             st.sidebar.markdown(f"- {author_display(name)}")
+        if st.sidebar.button("🔄 Переобучить"):
+            st.session_state.profiles = None
+            st.session_state.results = None
+            if os.path.exists(profile_path):
+                os.remove(profile_path)
+            st.rerun()
     else:
         st.sidebar.warning("Профили не найдены")
         if st.sidebar.button("Обучить профили"):
@@ -188,7 +194,7 @@ else:
     st.sidebar.success("Загружены профили:")
     for name in profiles:
         st.sidebar.markdown(f"- {author_display(name)}")
-    if st.sidebar.button("Переобучить"):
+    if st.sidebar.button("🔄 Переобучить"):
         st.session_state.profiles = None
         st.session_state.results = None
         if os.path.exists(profile_path):
