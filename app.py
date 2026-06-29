@@ -207,14 +207,15 @@ col_input, col_charts = st.columns([3, 2], gap="medium")
 with col_input:
     user_text = st.text_area("Введите текст для анализа:", height=250,
                              placeholder="Вставьте текст на русском или белорусском языке...")
+    st.caption(f"Длина текста: {len(user_text)} символов")
 
     if st.button("🔍 Анализировать", type="primary"):
         if st.session_state.profiles is None:
             st.error("Сначала обучите профили авторов.")
         elif not user_text.strip():
             st.warning("Введите текст для анализа.")
-        elif len(user_text.strip()) < 10:
-            st.warning("Текст слишком короткий (минимум 10 символов).")
+        elif len(user_text.strip()) < 400:
+            st.warning(f"Текст слишком короткий (минимум 400 символов, сейчас {len(user_text.strip())}).")
         else:
             profiles = st.session_state.profiles
             with st.spinner("Анализ..."):
