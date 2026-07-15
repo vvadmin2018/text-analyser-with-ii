@@ -1,6 +1,7 @@
 import streamlit as st
 import nltk
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
@@ -136,22 +137,6 @@ h1 {{
 st.title("🪶 GhostQuill")
 
 
-def compute_plot_data(profiles, anon_features):
-    authors_for_plot = {}
-    authors_dispersion = {}
-    for name, profile in profiles.items():
-        typical = [f.b for f in profile.features]
-        dispersion = [(f.c - f.a) / 4 for f in profile.features]
-        authors_for_plot[name] = typical
-        authors_dispersion[name] = dispersion
-    anon_dispersion = []
-    for i in range(len(anon_features)):
-        vals = [authors_dispersion.get(name, [0] * len(anon_features))[i]
-                for name in authors_dispersion]
-        anon_dispersion.append(np.mean(vals) if vals else 0)
-    return authors_for_plot, authors_dispersion, anon_dispersion
-
-
 def author_display(name):
     return config.AUTHOR_LABELS.get(name, name)
 
@@ -274,14 +259,22 @@ with col_charts:
         results = r["results"]
         best_author = r["best_author"]
         best_score = r["best_score"]
+        similarity_details = r["similarity_details"]
 
-        authors_for_plot, authors_dispersion, anon_dispersion = \
-            compute_plot_data(profiles, anon_features)
         feature_names = config.FEATURE_LIST_SHORT
         author_color = config.AUTHOR_COLORS.get(best_author, config.AUTHOR_COLORS['default'])
 
+        # Диапазоны (a, b, c) всех обученных авторов — нужны для единой шкалы
+        # нормализации в StyleRose.plot_fuzzy_rose (см. src/visualizer.py):
+        # одна и та же ось всегда означает одно и то же, независимо от того,
+        # рисуем мы одного автора или всех сразу.
+        all_authors_ranges = {
+            name: [(f.a, f.b, f.c) for f in profile.features]
+            for name, profile in profiles.items()
+        }
+
         st.subheader("")
-                     #"📊 Графики")
+        # "📊 Графики")
 
         ts = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         out_dir = os.path.join("output", ts, "")
@@ -295,23 +288,24 @@ with col_charts:
         st.pyplot(fig1, use_container_width=True)
         plt.close(fig1)
 
-        for author_name in profiles:
-            single_dict = {author_name: authors_for_plot[author_name]}
-            single_disp = {author_name: authors_dispersion[author_name]}
+        # Розы: закрашенная полоса — реальный диапазон [a, c] автора,
+        # линия — типичное значение (b), плюс отдельная линия анонимного
+        # текста, чтобы сразу видеть, попадает ли он в полосу автора.
+        for author_name in profiles.keys():
             author_color = config.AUTHOR_COLORS.get(author_name, config.AUTHOR_COLORS['default'])
             score = results[author_name]
             fig = StyleRose.plot_fuzzy_rose(
-                single_dict, anon_features, feature_names,
-                profiles_dispersion=single_disp,
-                anonymous_dispersion=anon_dispersion,
+                all_authors_ranges, anon_features, feature_names,
+                authors_to_plot=[author_name],
+                author_colors={author_name: author_color},
                 title=f"{author_display(author_name)} vs аноним ({score:.1%})",
-                author_colors={author_name: author_color}
+
             )
             fig.set_size_inches(5, 3.5)
             fig.savefig(os.path.join(out_dir, f"{author_name}_vs_anon.png"), dpi=150, bbox_inches='tight')
             plt.close(fig)
 
-        for author_name, (sims, weights, contribs) in r["similarity_details"].items():
+        for author_name, (sims, weights, contribs) in similarity_details.items():
             fig = StyleRose.plot_feature_importance(
                 author_display(author_name), sims, weights, contribs, config.FEATURE_LIST_SHORT,
                 title=f"Важность признаков: {author_display(author_name)} ({results[author_name]:.1%})"
@@ -319,14 +313,12 @@ with col_charts:
             fig.savefig(os.path.join(out_dir, f"feature_importance_{author_name}.png"), dpi=150, bbox_inches='tight')
             plt.close(fig)
 
-        single_dict = {best_author: authors_for_plot[best_author]}
-        single_disp = {best_author: authors_dispersion[best_author]}
         fig2 = StyleRose.plot_fuzzy_rose(
-            single_dict, anon_features, feature_names,
-            profiles_dispersion=single_disp,
-            anonymous_dispersion=anon_dispersion,
+            all_authors_ranges, anon_features, feature_names,
+            authors_to_plot=[best_author],
+            author_colors={best_author: author_color},
             title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
-            author_colors={best_author: author_color}
+
         )
         fig2.set_size_inches(5, 3.5)
         fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
