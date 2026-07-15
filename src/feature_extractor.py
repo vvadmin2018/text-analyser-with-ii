@@ -133,7 +133,8 @@ class FeatureExtractor:
             try:
                 parsed = self.morph.parse(word)[0]
                 pos = parsed.tag.POS
-                print("DEBUG: " + pos + " для " + parsed)
+                if config.LEVEL_LOG == "DEBUG":
+                    print(f"DEBUG: {pos} для {word}")
                 if pos and pos in pos_counts:
                     pos_counts[pos] += 1
                 if pos in ['NOUN', 'VERB', 'INFN', 'GRND', 'PRTF', 'ADJF']:
@@ -220,7 +221,8 @@ class FeatureExtractor:
         for sent in doc.sentences:
             for word in sent.words:
                 pos = word.upos
-                print("DEBUG: " + pos + " для " + str(word))
+                if config.LEVEL_LOG == "DEBUG":
+                    print(f"DEBUG: {pos} для {word}")
                 if pos == 'NOUN':
                     nouns += 1
                     words_main.append(word.text)
@@ -300,7 +302,7 @@ class FeatureExtractor:
         features.append(np.median(sent_lengths))  # A1
         features.append(np.var(sent_lengths) if len(sent_lengths) > 1 else 0)  # A2
 
-        # A3: Средняя длина  абзаца
+        # A3: Средняя длина абзаца
         paragraphs = re.split(r'\n\s*\n', text)
         paragraphs = [p for p in paragraphs if p.strip() and not p.startswith('–') and not p.startswith('—')]
 

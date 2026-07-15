@@ -1,7 +1,6 @@
 import streamlit as st
 import nltk
 import matplotlib
-
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
@@ -135,6 +134,7 @@ h1 {{
 """, unsafe_allow_html=True)
 
 st.title("🪶 GhostQuill")
+
 
 
 def author_display(name):
@@ -274,7 +274,7 @@ with col_charts:
         }
 
         st.subheader("")
-        # "📊 Графики")
+                     #"📊 Графики")
 
         ts = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         out_dir = os.path.join("output", ts, "")
@@ -299,7 +299,6 @@ with col_charts:
                 authors_to_plot=[author_name],
                 author_colors={author_name: author_color},
                 title=f"{author_display(author_name)} vs аноним ({score:.1%})",
-
             )
             fig.set_size_inches(5, 3.5)
             fig.savefig(os.path.join(out_dir, f"{author_name}_vs_anon.png"), dpi=150, bbox_inches='tight')
@@ -318,7 +317,6 @@ with col_charts:
             authors_to_plot=[best_author],
             author_colors={best_author: author_color},
             title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
-
         )
         fig2.set_size_inches(5, 3.5)
         fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
