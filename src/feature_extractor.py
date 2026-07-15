@@ -300,7 +300,7 @@ class FeatureExtractor:
         features.append(np.median(sent_lengths))  # A1
         features.append(np.var(sent_lengths) if len(sent_lengths) > 1 else 0)  # A2
 
-        # A3: Средняя длина абзаца
+        # A3: Средняя длина  абзаца
         paragraphs = re.split(r'\n\s*\n', text)
         paragraphs = [p for p in paragraphs if p.strip() and not p.startswith('–') and not p.startswith('—')]
 
