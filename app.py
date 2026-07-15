@@ -294,31 +294,40 @@ with col_charts:
         for author_name in profiles.keys():
             author_color = config.AUTHOR_COLORS.get(author_name, config.AUTHOR_COLORS['default'])
             score = results[author_name]
-            fig = StyleRose.plot_fuzzy_rose(
-                all_authors_ranges, anon_features, feature_names,
-                authors_to_plot=[author_name],
-                author_colors={author_name: author_color},
-                title=f"{author_display(author_name)} vs аноним ({score:.1%})",
-            )
-            fig.set_size_inches(5, 3.5)
-            fig.savefig(os.path.join(out_dir, f"{author_name}_vs_anon.png"), dpi=150, bbox_inches='tight')
-            plt.close(fig)
+            try:
+                fig = StyleRose.plot_fuzzy_rose(
+                    all_authors_ranges, anon_features, feature_names,
+                    authors_to_plot=[author_name],
+                    author_colors={author_name: author_color},
+                    title=f"{author_display(author_name)} vs аноним ({score:.1%})",
+                )
+                fig.set_size_inches(5, 3.5)
+                fig.savefig(os.path.join(out_dir, f"{author_name}_vs_anon.png"), dpi=150, bbox_inches='tight')
+                plt.close(fig)
+            except Exception as e:
+                st.warning(f"Не удалось построить розу для «{author_display(author_name)}»: {e}")
 
         for author_name, (sims, weights, contribs) in similarity_details.items():
-            fig = StyleRose.plot_feature_importance(
-                author_display(author_name), sims, weights, contribs, config.FEATURE_LIST_SHORT,
-                title=f"Важность признаков: {author_display(author_name)} ({results[author_name]:.1%})"
-            )
-            fig.savefig(os.path.join(out_dir, f"feature_importance_{author_name}.png"), dpi=150, bbox_inches='tight')
-            plt.close(fig)
+            try:
+                fig = StyleRose.plot_feature_importance(
+                    author_display(author_name), sims, weights, contribs, config.FEATURE_LIST_SHORT,
+                    title=f"Важность признаков: {author_display(author_name)} ({results[author_name]:.1%})"
+                )
+                fig.savefig(os.path.join(out_dir, f"feature_importance_{author_name}.png"), dpi=150, bbox_inches='tight')
+                plt.close(fig)
+            except Exception as e:
+                st.warning(f"Не удалось построить график важности признаков для «{author_display(author_name)}»: {e}")
 
-        fig2 = StyleRose.plot_fuzzy_rose(
-            all_authors_ranges, anon_features, feature_names,
-            authors_to_plot=[best_author],
-            author_colors={best_author: author_color},
-            title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
-        )
-        fig2.set_size_inches(5, 3.5)
-        fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
-        st.pyplot(fig2, use_container_width=True)
-        plt.close(fig2)
+        try:
+            fig2 = StyleRose.plot_fuzzy_rose(
+                all_authors_ranges, anon_features, feature_names,
+                authors_to_plot=[best_author],
+                author_colors={best_author: author_color},
+                title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
+            )
+            fig2.set_size_inches(5, 3.5)
+            fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
+            st.pyplot(fig2, use_container_width=True)
+            plt.close(fig2)
+        except Exception as e:
+            st.warning(f"Не удалось построить итоговую розу для «{author_display(best_author)}»: {e}")

@@ -153,11 +153,13 @@ def load_profiles(filename="authors_profiles.pkl"):
         # Проверяем, что портреты корректны
         valid_profiles = {}
         for name, profile in profiles.items():
-            if hasattr(profile, 'features') and len(profile.features) > 0:
+            n_feat = len(getattr(profile, 'features', []))
+            if n_feat == config.N_FEATURES:
                 valid_profiles[name] = profile
-                print(f"  ✅ {name}: {len(profile.features)} функций")
+                print(f"  ✅ {name}: {n_feat} функций")
             else:
-                print(f"  ❌ {name}: портрет поврежден, будет перестроен")
+                print(f"  ❌ {name}: портрет повреждён или устарел "
+                      f"({n_feat} признаков, ожидалось {config.N_FEATURES}), будет перестроен")
 
         if valid_profiles:
             return valid_profiles

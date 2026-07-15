@@ -127,209 +127,142 @@ class StyleRose:
         return fig
 
     @staticmethod
-    def plot_fuzzy_rose(authors_profiles, anonymous_vector, feature_names,
-                        profiles_dispersion=None, anonymous_dispersion=None,
-                        title="Нечёткая роза ветров", figsize=(14, 10),
-                    author_colors=None):
-
+    def plot_fuzzy_rose(all_authors_ranges, anon_features, feature_names,
+                        authors_to_plot=None, author_colors=None,
+                        title="Роза стилевых признаков", figsize=(11, 9)):
         """
-        Строит розу ветров с размытыми секторами, отражающими неопределённость
-            Параметры:
-            - authors_profiles: словарь {имя_автора: [значения_признаков]}
-            - anonymous_vector: список значений для анонимного текста
-            - feature_names: названия признаков
-            - profiles_dispersion: словарь {имя_автора: [дисперсии_признаков]}
-            - anonymous_dispersion: список дисперсий для анонима (не используется)
-            - author_colors: словарь {имя_автора: цвет} для индивидуальных цветов
+        Строит "розу ветров": линия автора = его типичное значение (b),
+        закрашенная полоса = реальный диапазон [a, c] треугольной функции
+        принадлежности (никакой искусственной "дисперсии" — это буквально
+        минимум и максимум, увиденные в обучающих текстах автора), плюс
+        отдельная линия анонимного текста поверх.
+
+        Ключевое отличие от исходной версии: нормализация вычисляется по
+        ЕДИНОЙ шкале — минимуму/максимуму среди [a, c] ВСЕХ обученных
+        авторов (плюс сам анонимный текст), а не только по паре
+        "автор vs аноним". Раньше при сравнении всего двух значений один
+        из них ГАРАНТИРОВАННО получал 1.0 на каждой оси (val / max(val1,
+        val2)) — роза выглядела как уверенное совпадение, даже когда
+        реальное сходство было низким. Теперь шкала одной и той же оси не
+        меняется от графика к графику: единичный автор, пара с анонимом
+        или "все авторы сразу" — везде один и тот же масштаб.
+
+        Args:
+            all_authors_ranges: {имя_автора: [(a, b, c), ...]} — диапазоны
+                ВСЕХ обученных авторов (даже если рисуем не всех — они
+                нужны для вычисления единой шкалы нормализации).
+            anon_features: сырой вектор признаков анонимного текста
+                (numpy array или список длиной len(feature_names)).
+            feature_names: подписи осей.
+            authors_to_plot: какие авторы реально рисуются на графике
+                (по умолчанию — все из all_authors_ranges).
+            author_colors: {имя_автора: hex-цвет}.
         """
-
-        print("\n🔄 Построение нечёткой розы ветров...")
-
-        # Нормализуем данные
-        norm_profiles, norm_anon = StyleRose.normalize_by_max(
-            authors_profiles, anonymous_vector
-        )
-
-        # Цвета по умолчанию, если не переданы
-        if author_colors is None:
-            default_colors = ['#FF4B4B', '#4B7BFF', '#4BFF4B', '#FFB44B', '#B44BFF']
-            author_colors = {}
-
-            for i, name in enumerate(norm_profiles.keys()):
-                author_colors[name] = default_colors[i % len(default_colors)]
-
-        # Обрабатываем дисперсию для АВТОРОВ
-        norm_dispersions = {}
-        if profiles_dispersion:
-            print("\n  Обработка дисперсий для авторов:")
-            for name, values in profiles_dispersion.items():
-                # Получаем нормализованные значения признаков для этого автора
-                profile_values = norm_profiles[name]
-
-                # Создаем нормализованную дисперсию относительно значения признака
-                norm_values = []
-                for i, (val, disp) in enumerate(zip(profile_values, values)):
-                    # Дисперсия как процент от значения (но не больше 0.3 и не меньше 0.05)
-                    if val > 0:
-                        # Относительная дисперсия: disp / val, но ограничиваем
-                        rel_disp = min(0.25, max(disp / val, 0.1)) if val > 0 else 0.01
-                    else:
-                        rel_disp = 0.01  # значение по умолчанию
-
-                    norm_values.append(rel_disp)
-
-                norm_dispersions[name] = norm_values
-                print(f"    {name}: мин={min(norm_values):.3f}, макс={max(norm_values):.3f}")
-
         n_features = len(feature_names)
         angles = np.linspace(0, 2 * np.pi, n_features, endpoint=False).tolist()
+        plot_angles = angles + [angles[0]]
+
+        if authors_to_plot is None:
+            authors_to_plot = list(all_authors_ranges.keys())
+
+        anon_features = list(anon_features)
+
+        # ===== Валидация входных данных =====
+        # Явные, понятные ошибки вместо голого IndexError/KeyError без
+        # контекста — это легко может случиться, если, например, "автор.pkl"
+        # был сохранён более старой версией кода с другим числом признаков.
+        if len(anon_features) != n_features:
+            raise ValueError(
+                f"plot_fuzzy_rose: длина anon_features ({len(anon_features)}) "
+                f"не совпадает с числом осей feature_names ({n_features}). "
+                f"Возможно, профили авторов или анонимный текст посчитаны "
+                f"устаревшей версией FeatureExtractor — удалите authors_profiles.pkl "
+                f"и пересчитайте профили."
+            )
+        for author_name in authors_to_plot:
+            if author_name not in all_authors_ranges:
+                raise KeyError(
+                    f"plot_fuzzy_rose: автор '{author_name}' не найден в "
+                    f"all_authors_ranges (доступны: {list(all_authors_ranges.keys())})."
+                )
+            n_ranges = len(all_authors_ranges[author_name])
+            if n_ranges != n_features:
+                raise ValueError(
+                    f"plot_fuzzy_rose: у автора '{author_name}' {n_ranges} "
+                    f"диапазонов (a,b,c), а осей feature_names — {n_features}. "
+                    f"Профиль этого автора, вероятно, посчитан устаревшей версией "
+                    f"кода — удалите authors_profiles.pkl и пересчитайте профили."
+                )
+
+        # ===== Единая шкала нормализации по каждому признаку =====
+        # min/max среди a и c ВСЕХ обученных авторов + сам аноним, чтобы
+        # ни автор, ни текст не могли искусственно "упереться" в 1.0.
+        global_min, global_max = [], []
+        for i in range(n_features):
+            vals = [anon_features[i]] if i < len(anon_features) else [0.0]
+            for ranges in all_authors_ranges.values():
+                if i < len(ranges):
+                    a, b, c = ranges[i]
+                    vals.append(a)
+                    vals.append(c)
+            global_min.append(min(vals))
+            global_max.append(max(vals))
+
+        def norm(x, i):
+            span = global_max[i] - global_min[i]
+            if span <= 0:
+                return 0.5
+            return (x - global_min[i]) / span
 
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111, projection='polar')
 
-        # Цвета для авторов
-        colors = ['#FF4B4B', '#4B7BFF', '#4BFF4B', '#FFB44B', '#B44BFF']
+        default_colors = ['#FF4B4B', '#4B7BFF', '#4BFF4B', '#FFB44B', '#B44BFF',
+                           '#FF4BFF', '#00CED1', '#8B4513', '#2E8B57']
+        if author_colors is None:
+            author_colors = {}
 
-        # Для каждого автора строим размытый сектор
-        for idx, (author_name, profile_values) in enumerate(norm_profiles.items()):
-            color = author_colors.get(author_name, f'C{idx}')
+        for idx, author_name in enumerate(authors_to_plot):
+            ranges = all_authors_ranges[author_name]
+            color = author_colors.get(author_name, default_colors[idx % len(default_colors)])
 
-            # Получаем дисперсию для автора
-            if norm_dispersions and author_name in norm_dispersions:
-                dispersion = norm_dispersions[author_name]
-            else:
-                # Значение по умолчанию - 10% от значения
-                dispersion = [min(0.1, max(v * 0.1, 0.05)) for v in profile_values]
+            b_norm = [norm(ranges[i][1], i) for i in range(n_features)]
+            a_norm = [norm(ranges[i][0], i) for i in range(n_features)]
+            c_norm = [norm(ranges[i][2], i) for i in range(n_features)]
 
-            # Создаем верхнюю и нижнюю границы сектора
-            plot_angles = angles + [angles[0]]
+            # Реальная полоса неопределённости = буквально [a, c] после
+            # нормализации (a и c могут поменяться местами не могут, т.к.
+            # a <= b <= c по построению TriangularMembership).
+            lower_band = a_norm + [a_norm[0]]
+            upper_band = c_norm + [c_norm[0]]
+            ax.fill_between(plot_angles, lower_band, upper_band, color=color,
+                            alpha=0.18, label=f'{author_name} (диапазон a…c)')
 
-            # Значения с учетом дисперсии
-            upper_values = []
-            lower_values = []
+            b_plot = b_norm + [b_norm[0]]
+            ax.plot(plot_angles, b_plot, 'o-', linewidth=2.3, color=color,
+                    label=author_name, markersize=6)
 
-            for val, disp in zip(profile_values, dispersion):
-                # Дисперсия как абсолютная величина (не процент!)
-                upper_values.append(min(1.0, val + disp))
-                lower_values.append(max(0.0, val - disp))
+        # ===== Анонимный текст =====
+        anon_norm = [norm(anon_features[i], i) for i in range(n_features)]
+        anon_plot = anon_norm + [anon_norm[0]]
+        ax.plot(plot_angles, anon_plot, 'o-', linewidth=3.5, color='black',
+                label='Анонимный текст', markersize=9,
+                markerfacecolor='yellow', markeredgecolor='black',
+                markeredgewidth=1.8, zorder=5)
 
-            # Замыкаем круги
-            upper_values = upper_values + [upper_values[0]]
-            lower_values = lower_values + [lower_values[0]]
-
-            # Рисуем размытый сектор
-            ax.fill_between(plot_angles, lower_values, upper_values,
-                            color=color, alpha=0.2, label=f'{author_name} (вариативность)')
-
-            # Рисуем основную линию
-            plot_values = profile_values + [profile_values[0]]
-            ax.plot(plot_angles, plot_values, 'o-', linewidth=2.5,
-                    color=color, label=author_name, markersize=8)
-
-        # Анонимный текст - только линия
-        plot_anon = norm_anon + [norm_anon[0]]
-        ax.plot(angles + [angles[0]], plot_anon, 'o-', linewidth=4,
-                color='black', label='Анонимный текст',
-                markersize=10, markerfacecolor='yellow',
-                markeredgecolor='black', markeredgewidth=2)
-
-        # Настройки графика
         ax.set_ylim(0, 1)
         ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
         ax.set_yticklabels(['0', '0.2', '0.4', '0.6', '0.8', '1.0'])
-
-        ax.grid(True, linestyle='--', alpha=0.5)
         ax.set_xticks(angles)
         ax.set_xticklabels(feature_names, size=10, fontweight='bold')
         ax.set_facecolor('#f8f9fa')
+        ax.grid(True, linestyle='--', alpha=0.5)
 
-        plt.title("\n\n" + title + "\n(размытые сектора показывают вариативность стиля авторов)",
-                  size=14, fontweight='bold', pad=20)
-
-        plt.legend(loc='upper right', bbox_to_anchor=(2.0, 1.0),
+        plt.title(title + "\n(закрашенная полоса — реальный диапазон [a, c] автора)",
+                  size=13, fontweight='bold', pad=20)
+        plt.legend(loc='upper right', bbox_to_anchor=(1.35, 1.1),
                    frameon=True, fancybox=True, shadow=False, fontsize=9,
-                   framealpha=0.8)
-
-        plt.tight_layout()
-        return fig
-
-    @staticmethod
-    def plot_comparison_old_vs_new(authors_profiles, anonymous_vector, feature_names,
-                                   profiles_dispersion=None, anonymous_dispersion=None):
-        """
-        Сравнивает старую (линейную) и новую (с размытыми секторами) визуализации
-        """
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
-
-        # Старая версия (линии)
-        norm_profiles, norm_anon = StyleRose.normalize_by_max(authors_profiles, anonymous_vector)
-        n_features = len(feature_names)
-        angles = np.linspace(0, 2 * np.pi, n_features, endpoint=False).tolist()
-
-        # Настраиваем первый подграфик
-        ax1 = plt.subplot(1, 2, 1, projection='polar')
-        colors = ['#FF4B4B', '#4B7BFF', '#4BFF4B']
-
-        for idx, (name, values) in enumerate(norm_profiles.items()):
-            plot_vals = values + [values[0]]
-            ax1.plot(angles + [angles[0]], plot_vals, 'o-',
-                     color=colors[idx], label=name, linewidth=2)
-
-        anon_plot = norm_anon + [norm_anon[0]]
-        ax1.plot(angles + [angles[0]], anon_plot, 'o-',
-                 color='black', label='Аноним', linewidth=3)
-
-        ax1.set_ylim(0, 1)
-        ax1.set_title("Старая версия (только линии)", size=12)
-        ax1.set_xticks(angles)
-        ax1.set_xticklabels([])
-        ax1.grid(True, alpha=0.3)
-
-        # Второй подграфик - новая версия с размытыми секторами
-        ax2 = plt.subplot(1, 2, 2, projection='polar')
-
-        if profiles_dispersion is None:
-            profiles_dispersion = {}
-            for name, values in authors_profiles.items():
-                profiles_dispersion[name] = [v * 0.15 for v in values]
-
-        if anonymous_dispersion is None:
-            anonymous_dispersion = [v * 0.15 for v in anonymous_vector]
-
-        for idx, (name, values) in enumerate(norm_profiles.items()):
-            color = colors[idx % len(colors)]
-            disp = profiles_dispersion[name]
-
-            upper = [min(1.0, v + d) for v, d in zip(values, disp)]
-            lower = [max(0.0, v - d) for v, d in zip(values, disp)]
-
-            ax2.fill_between(angles + [angles[0]],
-                             lower + [lower[0]],
-                             upper + [upper[0]],
-                             color=color, alpha=0.15)
-
-            ax2.plot(angles + [angles[0]], values + [values[0]], 'o-',
-                     color=color, label=name, linewidth=2)
-
-        anon_upper = [min(1.0, v + d) for v, d in zip(norm_anon, anonymous_dispersion)]
-        anon_lower = [max(0.0, v - d) for v, d in zip(norm_anon, anonymous_dispersion)]
-
-        ax2.fill_between(angles + [angles[0]],
-                         anon_lower + [anon_lower[0]],
-                         anon_upper + [anon_upper[0]],
-                         color='gray', alpha=0.15)
-
-        ax2.plot(angles + [angles[0]], anon_plot, 'o-',
-                 color='black', label='Аноним', linewidth=3)
-
-        ax2.set_ylim(0, 1)
-        ax2.set_title("Новая версия (с размытыми секторами)", size=12)
-        ax2.set_xticks(angles)
-        ax2.set_xticklabels(feature_names, size=8, rotation=45)
-        ax2.grid(True, alpha=0.3)
-
-        plt.suptitle("Сравнение визуализаций: линии vs размытые сектора",
-                     size=14, fontweight='bold')
+                   framealpha=0.85)
         plt.tight_layout()
         return fig
 
@@ -429,14 +362,10 @@ class StyleRose:
         ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
         ax.grid(True, axis='y', linestyle='--', alpha=0.3)
 
-        #ax.axhline(y=0.3, color='orange', linestyle=':', alpha=0.5, label='Низкая уверенность')
-        #ax.axhline(y=0.6, color='green', linestyle=':', alpha=0.5, label='Хорошая уверенность')
-        #ax.axhline(y=0.8, color='darkgreen', linestyle=':', alpha=0.5, label='Высокая уверенность')
-
-        # Цветные зоны вместо линий
-        #ax.axhspan(0, 0.3, color='red', alpha=0.05, label='Низкая уверенность')
-        #ax.axhspan(0.3, 0.6, color='orange', alpha=0.05, label='Средняя уверенность')
-        #ax.axhspan(0.6, 1.0, color='green', alpha=0.05, label='Высокая уверенность')
+        # Цветные зоны уверенности (согласованы с порогами раскраски столбцов выше)
+        ax.axhspan(0, 0.3, color='red', alpha=0.05, label='Низкая уверенность')
+        ax.axhspan(0.3, 0.6, color='orange', alpha=0.05, label='Средняя уверенность')
+        ax.axhspan(0.6, 1.0, color='green', alpha=0.05, label='Высокая уверенность')
 
         ax.legend(loc='upper right')
 
