@@ -121,7 +121,8 @@ class AuthorProfile:
 
         # ===== ПОСТРОЕНИЕ СВОДНОЙ ТАБЛИЦЫ =====
         if text_features_matrix:
-            print(f"\n  📊 Сводная таблица признаков для автора '{self.name}':")
+            from src.visualizer import _display_name
+            print(f"\n  📊 Сводная таблица признаков для автора '{_display_name(self.name)}':")
 
             # Создаем DataFrame: строки - тексты, столбцы - признаки
             df = pd.DataFrame(text_features_matrix, columns=config.FEATURE_LIST)
@@ -222,9 +223,188 @@ class AuthorProfile:
         print(f"  ✅ Портрет для {self.name} построен! Всего функций: {len(self.features)}")
         return self.features
 
+
+    def _make_df_with_stats(self, df_formatted, mean_values, median_values):
+        """Достраивает DataFrame строками 'Среднее' и 'Медиана'. Вынесено
+        отдельно, чтобы использоваться и при сохранении файлов, и при показе
+        таблицы в веб-приложении (get_summary_html) без дублирования кода."""
+        import pandas as pd
+
+        df_with_stats = df_formatted.copy()
+
+        mean_row_dict = {'Текст №': 'Среднее'}
+        for i, col in enumerate(config.FEATURE_LIST):
+            mean_row_dict[col] = mean_values[i]
+
+        median_row_dict = {'Текст №': 'Медиана'}
+        for i, col in enumerate(config.FEATURE_LIST):
+            median_row_dict[col] = median_values[i]
+
+        mean_row_df = pd.DataFrame([mean_row_dict])
+        median_row_df = pd.DataFrame([median_row_dict])
+        return pd.concat([df_with_stats, mean_row_df, median_row_df], ignore_index=True)
+
+    def _build_table_html(self, df_with_stats):
+        """Строит полный HTML-документ таблицы в теме "бумага и чернила"
+        (см. src/visualizer.py). Не пишет на диск — это отдельно делает
+        _save_summary_table; get_summary_html() использует этот же метод
+        для показа таблицы прямо в Streamlit-приложении."""
+        from datetime import datetime
+        from src.visualizer import (
+            PAPER_BG, GRID_COLOR, INK_TEXT, INK_TEXT_SOFT, ANON_ACCENT,
+            _author_color, _display_name,
+        )
+
+        author_display = _display_name(self.name)
+        author_color = _author_color(self.name)
+        n_texts = max(len(df_with_stats) - 2, 0)  # минус строки Среднее/Медиана
+
+        # ===== Компактность: таблица должна умещаться в одну страницу =====
+        # При 17 признаках + колонка "Текст №" (18 колонок) полные описательные
+        # названия ("Ср. длина предл.", "Доля вопросительных предложений" и
+        # т.п.) и 6 знаков после запятой у каждого числа гарантированно
+        # выталкивают таблицу за пределы экрана/страницы вправо. Поэтому здесь:
+        #   1) заголовки колонок — короткие подписи (те же, что и на графиках,
+        #      FEATURE_LIST_SHORT), а не длинные описательные названия;
+        #   2) числа округляются до 2 знаков при отображении;
+        #   3) table-layout: fixed + width: 100% — таблица физически не может
+        #      стать шире родительского контейнера, колонки просто сжимаются.
+        short_names = dict(zip(config.FEATURE_LIST, config.FEATURE_LIST_SHORT))
+        display_df = df_with_stats.rename(columns=short_names)
+        feature_cols = [short_names.get(c, c) for c in config.FEATURE_LIST]
+
+        # Строки "Среднее"/"Медиана" — как заметка золотистыми чернилами на
+        # полях: мягкая заливка акцентным цветом и линия сверху, чтобы сразу
+        # отличались от построчных значений отдельных текстов.
+        def _highlight_stats_row(row):
+            if row.iloc[0] in ('Среднее', 'Медиана'):
+                return [f'background-color: {ANON_ACCENT}2E; font-weight: 700; '
+                        f'border-top: 2px solid {ANON_ACCENT};'] * len(row)
+            return [''] * len(row)
+
+        styler = (
+            display_df.style
+            .format('{:.3f}', subset=feature_cols)
+            .apply(_highlight_stats_row, axis=1)
+            .set_table_attributes('class="data-table"')
+            .hide(axis='index')
+            .set_table_styles([
+                {'selector': 'table', 'props': [
+                    ('table-layout', 'fixed'), ('width', '100%'),
+                ]},
+                {'selector': 'th', 'props': [
+                    ('background-color', author_color), ('color', PAPER_BG),
+                    ('padding', '5px 3px'), ('font-weight', '600'),
+                    ('font-size', '10.5px'), ('line-height', '1.2'),
+                    ('word-break', 'break-word'), ('white-space', 'normal'),
+                    ('border', f'1px solid {author_color}'),
+                ]},
+                {'selector': 'td', 'props': [
+                    ('padding', '4px 3px'), ('text-align', 'center'),
+                    ('font-size', '11px'),
+                    ('border', f'1px solid {GRID_COLOR}'),
+                ]},
+                {'selector': 'th:first-child, td:first-child', 'props': [
+                    ('width', '60px'),
+                ]},
+                {'selector': 'tbody tr:nth-child(odd)', 'props': [('background-color', PAPER_BG)]},
+                {'selector': 'tbody tr:nth-child(even)', 'props': [('background-color', '#F3ECDD')]},
+                {'selector': 'tbody tr:hover', 'props': [('background-color', '#EFE3C8')]},
+            ], overwrite=False)
+        )
+        table_html = styler.to_html()
+
+        return f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Сводная таблица признаков — {author_display}</title>
+    <style>
+        * {{ box-sizing: border-box; }}
+        html, body {{ width: 100%; }}
+        body {{
+            font-family: Verdana, Geneva, sans-serif;
+            background: {PAPER_BG};
+            color: {INK_TEXT};
+            margin: 0;
+            padding: 18px 22px 28px;
+        }}
+        .sheet {{
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+            background: #FFFFFF;
+            border: 1px solid {GRID_COLOR};
+            border-radius: 10px;
+            padding: 18px 20px 22px;
+            box-shadow: 0 6px 18px rgba(42, 35, 28, 0.10);
+        }}
+        h1 {{
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 19px;
+            color: {author_color};
+            border-bottom: 3px solid {author_color};
+            padding-bottom: 8px;
+            margin: 0 0 6px;
+        }}
+        .meta {{ color: {INK_TEXT_SOFT}; font-size: 12.5px; margin: 2px 0; }}
+        table.data-table {{
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+            margin-top: 16px;
+            font-size: 11px;
+        }}
+        .footer-note {{
+            margin-top: 14px;
+            font-size: 11.5px;
+            color: {INK_TEXT_SOFT};
+            font-style: italic;
+        }}
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <h1>Сводная таблица признаков автора: {author_display}</h1>
+        <p class="meta">Текстов в обучающей выборке: {n_texts}</p>
+        <p class="meta">Дата генерации: {datetime.now().strftime("%d.%m.%Y %H:%M")}</p>
+        {table_html}
+        <p class="footer-note">Значения округлены до 3 знаков после запятой.</p>
+    </div>
+</body>
+</html>"""
+
+    def get_summary_html(self):
+        """Возвращает готовый HTML сводной таблицы признаков автора — БЕЗ
+        сохранения на диск. Предназначен для показа прямо в Streamlit
+        (app.py), в дополнение к файлам, которые пишет _save_summary_table.
+
+        Требует, чтобы профиль был построен через build_from_texts() в этом
+        же процессе, либо загружен из pickle, сохранённого ПОСЛЕ обучения
+        текущей версией кода (self.feature_stats сохраняется как обычный
+        атрибут объекта, поэтому переживает pickle). Профили, обученные
+        старой версией profile_builder.py (до появления feature_stats),
+        такого атрибута не имеют — тогда возвращается None, и вызывающий
+        код (app.py) должен предложить переобучить профили.
+        """
+        stats = getattr(self, 'feature_stats', None)
+        if not stats or 'dataframe' not in stats:
+            return None
+        df_with_stats = self._make_df_with_stats(
+            stats['dataframe'], stats['mean'], stats['median']
+        )
+        return self._build_table_html(df_with_stats)
+
     def _save_summary_table(self, df_formatted, mean_values, median_values):
         """
-        Сохраняет сводную таблицу признаков в output в форматах HTML и TXT
+        Сохраняет сводную таблицу признаков в output в форматах HTML и TXT.
+
+        Оформление HTML согласовано с темой графиков (см. src/visualizer.py):
+        тёплый бумажный фон, тонкая карандашная сетка, а цвет заголовка и
+        шапки таблицы — те самые "чернила" автора из config.AUTHOR_COLORS,
+        так что таблица и роза ветров одного автора выглядят одним
+        комплектом. Имя автора везде отображается через
+        config.AUTHOR_LABELS, а не как сырой служебный ключ (self.name).
 
         Args:
             df_formatted: DataFrame с данными по текстам
@@ -233,7 +413,11 @@ class AuthorProfile:
         """
         import os
         from datetime import datetime
-        import pandas as pd
+        from src.visualizer import _display_name
+
+        author_display = _display_name(self.name)
+        df_with_stats = self._make_df_with_stats(df_formatted, mean_values, median_values)
+        html_content = self._build_table_html(df_with_stats)
 
         # Создаем директорию output если не существует
         output_dir = config.OUTPUT_DIR_MAIN
@@ -244,58 +428,15 @@ class AuthorProfile:
         author_dir = os.path.join(output_dir, f"{timestamp}_{self.name}")
         os.makedirs(author_dir, exist_ok=True)
 
-        # Добавляем строки со средним и медианой в DataFrame для сохранения
-        df_with_stats = df_formatted.copy()
-
-        # Создаем строку среднего
-        mean_row_dict = {'Текст №': 'Среднее'}
-        for i, col in enumerate(config.FEATURE_LIST):
-            mean_row_dict[col] = mean_values[i]
-
-        # Создаем строку медианы
-        median_row_dict = {'Текст №': 'Медиана'}
-        for i, col in enumerate(config.FEATURE_LIST):
-            median_row_dict[col] = median_values[i]
-
-        # Добавляем строки в DataFrame
-        mean_row_df = pd.DataFrame([mean_row_dict])
-        median_row_df = pd.DataFrame([median_row_dict])
-        df_with_stats = pd.concat([df_with_stats, mean_row_df, median_row_df], ignore_index=True)
-
         # Сохраняем в HTML
         html_file = os.path.join(author_dir, f"{self.name}_summary.html")
-        html_content = f"""<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Сводная таблица признаков - {self.name}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; }}
-        h1 {{ color: #333; }}
-        table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
-        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: center; }}
-        th {{ background-color: #4CAF50; color: white; }}
-        tr:nth-child(even) {{ background-color: #f2f2f2; }}
-        tr:hover {{ background-color: #ddd; }}
-        .stats-row {{ font-weight: bold; background-color: #e7f3ff; }}
-        .header-row {{ background-color: #4CAF50; color: white; }}
-    </style>
-</head>
-<body>
-    <h1>📊 Сводная таблица признаков автора: {self.name}</h1>
-    <p>Количество текстов: {len(df_formatted)}</p>
-    <p>Дата генерации: {datetime.now().strftime("%d.%m.%Y %H:%M")}</p>
-    {df_with_stats.to_html(index=False, classes='data-table', na_rep="N/A")}
-</body>
-</html>"""
-
         with open(html_file, 'w', encoding='utf-8') as f:
             f.write(html_content)
 
         # Сохраняем в TXT
         txt_file = os.path.join(author_dir, f"{self.name}_summary.txt")
         with open(txt_file, 'w', encoding='utf-8') as f:
-            f.write(f"Сводная таблица признаков автора: {self.name}\n")
+            f.write(f"Сводная таблица признаков автора: {author_display}\n")
             f.write(f"Количество текстов: {len(df_formatted)}\n")
             f.write(f"Дата генерации: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n")
             f.write("=" * (len(config.FEATURE_LIST) * 12 + 15) + "\n\n")
@@ -308,6 +449,7 @@ class AuthorProfile:
             f.write("Примечание: все значения округлены до 3 знаков после запятой\n")
 
         print(f"  💾 Таблица сохранена в:\n     HTML: {html_file}\n     TXT:  {txt_file}")
+
 
     def get_weights(self):
         """
