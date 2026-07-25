@@ -364,8 +364,8 @@ with col_charts:
                 author_colors={best_author: author_color},
                 title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
             )
-        fig2.set_size_inches(7, 5)
-        fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
+            fig2.set_size_inches(7, 5)
+            fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
             st.pyplot(fig2, use_container_width=True)
             plt.close(fig2)
         except Exception as e:
