@@ -33,7 +33,7 @@ LANG_OPTIONS = {
     },
 }
 
-st.set_page_config(page_title="GhostQuill", layout="wide")
+st.set_page_config(page_title="THinkING", layout="wide")
 
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = False
@@ -133,7 +133,7 @@ h1 {{
 <div class="ghost-fly">👻</div>
 """, unsafe_allow_html=True)
 
-st.title("🪶 GhostQuill")
+st.title("THinkING")
 
 
 
