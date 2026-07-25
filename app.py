@@ -263,7 +263,7 @@ with col_input:
                     }
                     st.rerun()
         with col_b:
-            if st.button("✕ Очистить"):
+            if user_text.strip() and st.button("✕ Очистить"):
                 st.session_state.input_text = ""
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
