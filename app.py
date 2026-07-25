@@ -130,13 +130,13 @@ h1 {
     border-color: #8A6E4E !important;
 }
 .analyze-section button {
-    background-color: #D32F2F !important;
+    background-color: #B8860B !important;
     color: #FFFFFF !important;
-    border-color: #B71C1C !important;
+    border-color: #8B6508 !important;
 }
 .analyze-section button:hover {
-    background-color: #C62828 !important;
-    border-color: #8E0000 !important;
+    background-color: #A0760A !important;
+    border-color: #6B4F06 !important;
 }
 </style>
 """
