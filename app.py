@@ -112,7 +112,9 @@ section[data-testid="stSidebar"] .st-emotion-cache-1wmy9hl {
     stroke: #FFD700 !important;
 }
 [data-testid="stSidebarCollapsedButton"],
-[data-testid="stSidebarCollapsedButton"] * {
+[data-testid="stSidebarCollapsedButton"] *,
+[data-testid="stSidebarCollapsedButton"] svg,
+[data-testid="stSidebarCollapsedButton"] svg path {
     color: #4A90D9 !important;
     fill: #4A90D9 !important;
     stroke: #4A90D9 !important;
