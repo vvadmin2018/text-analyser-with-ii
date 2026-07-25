@@ -120,6 +120,15 @@ h1 {
     margin-top: -24px !important;
     padding-top: 0 !important;
 }
+.retrain-section button {
+    background-color: #C4A882 !important;
+    color: #3A2A1A !important;
+    border-color: #A0845C !important;
+}
+.retrain-section button:hover {
+    background-color: #B89976 !important;
+    border-color: #8A6E4E !important;
+}
 </style>
 """
 
@@ -145,12 +154,14 @@ if st.session_state.profiles is None:
         st.sidebar.success("Загружены профили:")
         for name in profiles:
             st.sidebar.markdown(f"- {author_display(name)}")
+        st.sidebar.markdown('<div class="retrain-section">', unsafe_allow_html=True)
         if st.sidebar.button("🔄 Переобучить"):
             st.session_state.profiles = None
             st.session_state.results = None
             if os.path.exists(profile_path):
                 os.remove(profile_path)
             st.rerun()
+        st.sidebar.markdown('</div>', unsafe_allow_html=True)
     else:
         st.sidebar.warning("Профили не найдены")
         if st.sidebar.button("Обучить профили"):
@@ -173,12 +184,14 @@ else:
     st.sidebar.success("Загружены профили:")
     for name in profiles:
         st.sidebar.markdown(f"- {author_display(name)}")
+    st.sidebar.markdown('<div class="retrain-section">', unsafe_allow_html=True)
     if st.sidebar.button("🔄 Переобучить"):
         st.session_state.profiles = None
         st.session_state.results = None
         if os.path.exists(profile_path):
             os.remove(profile_path)
         st.rerun()
+    st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("---")
 col_input, col_charts = st.columns([3, 2], gap="medium")
