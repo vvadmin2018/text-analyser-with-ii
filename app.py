@@ -211,7 +211,7 @@ with col_input:
     st.caption(f"Длина текста: {len(user_text)} символов")
 
     st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
-    if st.button("🔍 Анализировать", type="primary"):
+    if st.button("🔍 Привет", type="primary"):
         if st.session_state.profiles is None:
             st.error("Сначала обучите профили авторов.")
         elif not user_text.strip():
