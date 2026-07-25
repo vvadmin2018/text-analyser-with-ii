@@ -6,7 +6,7 @@ from datetime import datetime
 
 LEVEL_LOG = "INFO"
 #LEVEL_LOG = "DEBUG"
-ANONIM_TEXT = "texts/anonim/anonim-8-bulichev-alisa.txt"
+ANONIM_TEXT = "texts/anonim/anonim-1-bulichev-alisa.txt"
 BASE_PATH = "texts/"
 #AUTHORS_LIST = ["pushkin", "lermontov", "tolstoy", "bulichev"]
 AUTHORS_LIST = ["bulichev", "drugkov", "saharnov"]
