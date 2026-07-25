@@ -351,7 +351,7 @@ with col_charts:
             fig1 = StyleRose.plot_authors_comparison(results, title="Схожесть с авторами")
             fig1.set_size_inches(5, 3.5)
             fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
-            st.pyplot(fig1, use_container_width=True)
+            st.pyplot(fig1)
             plt.close(fig1)
 
         with chart_col2:
@@ -364,7 +364,7 @@ with col_charts:
                 )
                 fig2.set_size_inches(5, 3.5)
                 fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
-                st.pyplot(fig2, use_container_width=True)
+                st.pyplot(fig2)
                 plt.close(fig2)
             except Exception as e:
                 st.warning(f"Не удалось построить итоговую розу: {e}")
