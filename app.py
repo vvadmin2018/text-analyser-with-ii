@@ -125,7 +125,9 @@ h1 {
 
 st.markdown(PAPER_CSS + DARK_EXTRA, unsafe_allow_html=True)
 
-st.title("🪶 Думающие чернила")
+st.title("THinkING"
+         "Думающие чернила")
+
 
 
 
