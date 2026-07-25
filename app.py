@@ -120,6 +120,50 @@ h1 {
     margin-top: -24px !important;
     padding-top: 0 !important;
 }
+.stApp {
+    position: relative;
+    overflow: hidden;
+}
+.stApp::before {
+    content: '';
+    position: fixed;
+    width: 550px;
+    height: 160px;
+    top: 6%;
+    left: -600px;
+    background:
+        radial-gradient(ellipse 160px 70px at 25% 55%, rgba(230, 225, 210, 0.45) 0%, transparent 100%),
+        radial-gradient(ellipse 130px 60px at 50% 45%, rgba(230, 225, 210, 0.35) 0%, transparent 100%),
+        radial-gradient(ellipse 100px 50px at 70% 55%, rgba(230, 225, 210, 0.3) 0%, transparent 100%),
+        radial-gradient(ellipse 120px 45px at 85% 50%, rgba(230, 225, 210, 0.25) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+    animation: cloudMove 150s linear infinite;
+    filter: blur(1px);
+    border-radius: 50%;
+}
+.stApp::after {
+    content: '';
+    position: fixed;
+    width: 400px;
+    height: 130px;
+    top: 28%;
+    left: -450px;
+    background:
+        radial-gradient(ellipse 130px 55px at 30% 50%, rgba(225, 220, 205, 0.35) 0%, transparent 100%),
+        radial-gradient(ellipse 100px 45px at 55% 45%, rgba(225, 220, 205, 0.28) 0%, transparent 100%),
+        radial-gradient(ellipse 80px 40px at 75% 55%, rgba(225, 220, 205, 0.22) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+    animation: cloudMove 180s linear infinite;
+    animation-delay: -60s;
+    filter: blur(1px);
+    border-radius: 50%;
+}
+@keyframes cloudMove {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(calc(100vw + 700px)); }
+}
 .retrain-section button {
     background-color: #C4A882 !important;
     color: #3A2A1A !important;
