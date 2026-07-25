@@ -43,8 +43,6 @@ if "last_lang" not in st.session_state:
     st.session_state.last_lang = None
 if "results" not in st.session_state:
     st.session_state.results = None
-if "input_text" not in st.session_state:
-    st.session_state.input_text = ""
 
 st.sidebar.header("Настройки")
 st.session_state.dark_mode = st.sidebar.checkbox("🌙 Тёмная тема", value=st.session_state.dark_mode)
@@ -55,7 +53,6 @@ cur_lang = lang_cfg["lang"]
 if st.session_state.last_lang != lang_name:
     st.session_state.profiles = None
     st.session_state.results = None
-    st.session_state.input_text = ""
     st.session_state.last_lang = lang_name
 
 profile_path = lang_cfg["pickle"]
@@ -105,18 +102,6 @@ section[data-testid="stSidebar"] .st-emotion-cache-10trblm,
 section[data-testid="stSidebar"] .st-emotion-cache-1wmy9hl {
     color: #fafafa !important;
 }
-[data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarCollapseButton"] * {
-    color: #FFD700 !important;
-    fill: #FFD700 !important;
-    stroke: #FFD700 !important;
-}
-[data-testid="stSidebarCollapsedButton"],
-[data-testid="stSidebarCollapsedButton"] * {
-    color: #000000 !important;
-    fill: #000000 !important;
-    stroke: #000000 !important;
-}
 </style>
 """ if st.session_state.dark_mode else "")
 
@@ -134,24 +119,6 @@ section[data-testid="stSidebar"] {
 h1 {
     margin-top: -24px !important;
     padding-top: 0 !important;
-}
-.retrain-section button {
-    background-color: #C4A882 !important;
-    color: #3A2A1A !important;
-    border-color: #A0845C !important;
-}
-.retrain-section button:hover {
-    background-color: #B89976 !important;
-    border-color: #8A6E4E !important;
-}
-div.analyze-section button {
-    background-color: #B8860B !important;
-    color: #FFFFFF !important;
-    border-color: #8B6508 !important;
-}
-div.analyze-section button:hover {
-    background-color: #A0760A !important;
-    border-color: #6B4F06 !important;
 }
 </style>
 """
@@ -178,15 +145,12 @@ if st.session_state.profiles is None:
         st.sidebar.success("Загружены профили:")
         for name in profiles:
             st.sidebar.markdown(f"- {author_display(name)}")
-        st.sidebar.markdown('<div class="retrain-section">', unsafe_allow_html=True)
         if st.sidebar.button("🔄 Переобучить"):
             st.session_state.profiles = None
             st.session_state.results = None
-            st.session_state.input_text = ""
             if os.path.exists(profile_path):
                 os.remove(profile_path)
             st.rerun()
-        st.sidebar.markdown('</div>', unsafe_allow_html=True)
     else:
         st.sidebar.warning("Профили не найдены")
         if st.sidebar.button("Обучить профили"):
@@ -209,77 +173,57 @@ else:
     st.sidebar.success("Загружены профили:")
     for name in profiles:
         st.sidebar.markdown(f"- {author_display(name)}")
-    st.sidebar.markdown('<div class="retrain-section">', unsafe_allow_html=True)
     if st.sidebar.button("🔄 Переобучить"):
         st.session_state.profiles = None
         st.session_state.results = None
-        st.session_state.input_text = ""
         if os.path.exists(profile_path):
             os.remove(profile_path)
         st.rerun()
-    st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("---")
-col_ratio = [1, 3] if st.session_state.results is not None else [3, 2]
-col_input, col_charts = st.columns(col_ratio, gap="medium")
+col_input, col_charts = st.columns([3, 2], gap="medium")
 
 with col_input:
-    if st.session_state.results is None:
-        user_text = st.text_area("Введите текст для анализа:", height=250,
-                                 placeholder="Вставьте текст на русском или белорусском языке...",
-                                 value=st.session_state.input_text)
-        st.session_state.input_text = user_text
-        st.caption(f"Длина текста: {len(user_text)} символов")
+    user_text = st.text_area("Введите текст для анализа:", height=250,
+                             placeholder="Вставьте текст на русском или белорусском языке...")
+    st.caption(f"Длина текста: {len(user_text)} символов")
 
-        st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
-        col_a, col_b = st.columns(2, gap="small")
-        with col_a:
-            if st.button("Анализировать"):
-                if st.session_state.profiles is None:
-                    st.error("Сначала обучите профили авторов.")
-                elif not user_text.strip():
-                    st.warning("Введите текст для анализа.")
-                elif len(user_text.strip()) < 400:
-                    st.warning(f"Текст слишком короткий (минимум 400 символов, сейчас {len(user_text.strip())}).")
-                else:
-                    profiles = st.session_state.profiles
-                    with st.spinner("Анализ..."):
-                        extractor = FeatureExtractor(language=cur_lang)
-                        anon_features = extractor.extract(user_text)
+    if st.button("🔍 Анализировать", type="primary"):
+        if st.session_state.profiles is None:
+            st.error("Сначала обучите профили авторов.")
+        elif not user_text.strip():
+            st.warning("Введите текст для анализа.")
+        elif len(user_text.strip()) < 400:
+            st.warning(f"Текст слишком короткий (минимум 400 символов, сейчас {len(user_text.strip())}).")
+        else:
+            profiles = st.session_state.profiles
+            with st.spinner("Анализ..."):
+                extractor = FeatureExtractor(language=cur_lang)
+                anon_features = extractor.extract(user_text)
 
-                        results = {}
-                        similarity_details = {}
-                        for author_name, profile in profiles.items():
-                            sim, details = profile.similarity_with_details(anon_features)
-                            results[author_name] = sim
-                            similarity_details[author_name] = details
+                results = {}
+                similarity_details = {}
+                for author_name, profile in profiles.items():
+                    sim, details = profile.similarity_with_details(anon_features)
+                    results[author_name] = sim
+                    similarity_details[author_name] = details
 
-                        best_author = max(results, key=results.get)
-                        best_score = results[best_author]
+                best_author = max(results, key=results.get)
+                best_score = results[best_author]
 
-                    st.session_state.results = {
-                        "best_author": best_author,
-                        "best_score": best_score,
-                        "results": results,
-                        "anon_features": anon_features,
-                        "similarity_details": similarity_details,
-                        "profiles": profiles,
-                    }
-                    st.rerun()
-        with col_b:
-            if user_text.strip() and st.button("✕ Очистить"):
-                st.session_state.input_text = ""
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
-        if st.button("🔄 Новый анализ"):
-            st.session_state.results = None
+            st.session_state.results = {
+                "best_author": best_author,
+                "best_score": best_score,
+                "results": results,
+                "anon_features": anon_features,
+                "similarity_details": similarity_details,
+                "profiles": profiles,
+            }
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.results:
         r = st.session_state.results
+        st.markdown("---")
         score_pct = r["best_score"] * 100
         if r["best_score"] >= 0.7:
             color = "green"
@@ -323,30 +267,61 @@ with col_charts:
             for name, profile in profiles.items()
         }
 
+        st.subheader("")
+                     #"📊 Графики")
+
         ts = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         out_dir = os.path.join("output", ts, "")
         os.makedirs(out_dir, exist_ok=True)
 
-        chart_col1, chart_col2 = st.columns(2, gap="medium")
+        fig1 = StyleRose.plot_authors_comparison(
+            results, title=f"Схожесть с авторами"
+        )
+        fig1.set_size_inches(5, 3)
+        fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
+        st.pyplot(fig1, use_container_width=True)
+        plt.close(fig1)
 
-        with chart_col1:
-            fig1 = StyleRose.plot_authors_comparison(results, title="Схожесть с авторами")
-            fig1.set_size_inches(5, 3.5)
-            fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
-            st.pyplot(fig1, use_container_width=True)
-            plt.close(fig1)
-
-        with chart_col2:
+        # Розы: закрашенная полоса — реальный диапазон [a, c] автора,
+        # линия — типичное значение (b), плюс отдельная линия анонимного
+        # текста, чтобы сразу видеть, попадает ли он в полосу автора.
+        for author_name in profiles.keys():
+            author_color = config.AUTHOR_COLORS.get(author_name, config.AUTHOR_COLORS['default'])
+            score = results[author_name]
             try:
-                fig2 = StyleRose.plot_fuzzy_rose(
+                fig = StyleRose.plot_fuzzy_rose(
                     all_authors_ranges, anon_features, feature_names,
-                    authors_to_plot=[best_author],
-                    author_colors={best_author: author_color},
-                    title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
+                    authors_to_plot=[author_name],
+                    author_colors={author_name: author_color},
+                    title=f"{author_display(author_name)} vs аноним ({score:.1%})",
                 )
-                fig2.set_size_inches(5, 3.5)
-                fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
-                st.pyplot(fig2, use_container_width=True)
-                plt.close(fig2)
+                fig.set_size_inches(5, 3.5)
+                fig.savefig(os.path.join(out_dir, f"{author_name}_vs_anon.png"), dpi=150, bbox_inches='tight')
+                plt.close(fig)
             except Exception as e:
-                st.warning(f"Не удалось построить итоговую розу: {e}")
+                st.warning(f"Не удалось построить розу для «{author_display(author_name)}»: {e}")
+
+        for author_name, (sims, weights, contribs) in similarity_details.items():
+            try:
+                fig = StyleRose.plot_feature_importance(
+                    author_display(author_name), sims, weights, contribs, config.FEATURE_LIST_SHORT,
+                    title=f"Важность признаков: {author_display(author_name)} ({results[author_name]:.1%})"
+                )
+                fig.savefig(os.path.join(out_dir, f"feature_importance_{author_name}.png"), dpi=150, bbox_inches='tight')
+                plt.close(fig)
+            except Exception as e:
+                st.warning(f"Не удалось построить график важности признаков для «{author_display(author_name)}»: {e}")
+
+        try:
+            fig2 = StyleRose.plot_fuzzy_rose(
+                all_authors_ranges, anon_features, feature_names,
+                authors_to_plot=[best_author],
+                author_colors={best_author: author_color},
+                title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
+            )
+            fig2.set_size_inches(5, 3.5)
+            fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
+            st.pyplot(fig2, use_container_width=True)
+            plt.close(fig2)
+        except Exception as e:
+            st.warning(f"Не удалось построить итоговую розу для «{author_display(best_author)}»: {e}")
