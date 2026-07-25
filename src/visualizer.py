@@ -260,9 +260,9 @@ class StyleRose:
 
         plt.title(title + "\n(закрашенная полоса — реальный диапазон [a, c] автора)",
                   size=13, fontweight='bold', pad=20)
-        plt.legend(loc='upper right', bbox_to_anchor=(1.35, 1.1),
-                   frameon=True, fancybox=True, shadow=False, fontsize=9,
-                   framealpha=0.85)
+        plt.legend(loc='upper left', bbox_to_anchor=(0, 1.15),
+                   frameon=True, fancybox=True, shadow=False, fontsize=8,
+                   framealpha=0.85, ncol=3)
         plt.tight_layout()
         return fig
 

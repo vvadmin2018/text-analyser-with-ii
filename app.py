@@ -322,7 +322,7 @@ with col_charts:
         fig1 = StyleRose.plot_authors_comparison(
             results, title=f"Схожесть с авторами"
         )
-        fig1.set_size_inches(5, 3)
+        fig1.set_size_inches(7, 4)
         fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
         st.pyplot(fig1, use_container_width=True)
         plt.close(fig1)
@@ -340,7 +340,7 @@ with col_charts:
                     author_colors={author_name: author_color},
                     title=f"{author_display(author_name)} vs аноним ({score:.1%})",
                 )
-                fig.set_size_inches(5, 3.5)
+                fig.set_size_inches(7, 5)
                 fig.savefig(os.path.join(out_dir, f"{author_name}_vs_anon.png"), dpi=150, bbox_inches='tight')
                 plt.close(fig)
             except Exception as e:
@@ -364,8 +364,8 @@ with col_charts:
                 author_colors={best_author: author_color},
                 title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
             )
-            fig2.set_size_inches(5, 3.5)
-            fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
+        fig2.set_size_inches(7, 5)
+        fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
             st.pyplot(fig2, use_container_width=True)
             plt.close(fig2)
         except Exception as e:
