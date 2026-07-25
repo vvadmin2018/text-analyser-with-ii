@@ -379,6 +379,10 @@ class StyleRose:
         plt.title(title + "\n(закрашенная полоса — реальный диапазон [a, c] автора)",
                   size=12.5, fontweight='bold', pad=24, color=INK_TEXT)
 
+        ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.22),
+                  ncol=3, fontsize=8.8, framealpha=0.95)
+        ax.set_aspect('equal', adjustable='box', anchor='C')
+
         plt.tight_layout()
         return fig
 
@@ -477,11 +481,11 @@ class StyleRose:
         return fig
 
     @staticmethod
-    def plot_authors_comparison(results_dict, title="Сравнение авторов"):
+    def plot_authors_comparison(results_dict, title="Сравнение авторов", figsize=(9, 6.5)):
         """
         Строит сравнительную диаграмму для всех авторов
         """
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=figsize)
         ax.set_facecolor(PAPER_BG)
         _style_spines(ax)
 
@@ -489,8 +493,7 @@ class StyleRose:
         authors_disp = [_display_name(a) for a in authors]
         scores = list(results_dict.values())
 
-        colors = [CONF_HIGH if s > 0.6 else CONF_MID if s > 0.3 else CONF_LOW
-                  for s in scores]
+        colors = [_author_color(a, i) for i, a in enumerate(authors)]
 
         bars = ax.bar(authors_disp, scores, color=colors, edgecolor=INK_TEXT,
                        linewidth=1.2, alpha=0.92, width=0.6)
@@ -514,6 +517,10 @@ class StyleRose:
         ax.axhspan(0, 0.3, color=CONF_LOW, alpha=0.06, zorder=0)
         ax.axhspan(0.3, 0.6, color=CONF_MID, alpha=0.06, zorder=0)
         ax.axhspan(0.6, 1.0, color=CONF_HIGH, alpha=0.06, zorder=0)
+
+        ax.legend(bars, [_display_name(a) for a in authors],
+                  loc='lower center', bbox_to_anchor=(0.5, -0.22),
+                  ncol=len(authors), fontsize=9, framealpha=0.9)
 
         plt.tight_layout()
         return fig
