@@ -129,12 +129,14 @@ h1 {
     background-color: #B89976 !important;
     border-color: #8A6E4E !important;
 }
-.analyze-section button {
+.analyze-section button[kind="primary"],
+.analyze-section button[data-testid="baseButton-primary"] {
     background-color: #B8860B !important;
     color: #FFFFFF !important;
     border-color: #8B6508 !important;
 }
-.analyze-section button:hover {
+.analyze-section button[kind="primary"]:hover,
+.analyze-section button[data-testid="baseButton-primary"]:hover {
     background-color: #A0760A !important;
     border-color: #6B4F06 !important;
 }
