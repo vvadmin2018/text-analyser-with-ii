@@ -155,6 +155,20 @@ div.analyze-section button:hover {
     background-color: #A0760A !important;
     border-color: #6B4F06 !important;
 }
+.stTextArea textarea:focus {
+    outline: none !important;
+    border-color: transparent !important;
+    box-shadow: 0 0 0 2px #E91E63 !important;
+    animation: borderGlow 3s ease-in-out infinite !important;
+}
+@keyframes borderGlow {
+    0%   { box-shadow: 0 0 0 2px #E91E63; }
+    20%  { box-shadow: 0 0 0 2px #9C27B0; }
+    40%  { box-shadow: 0 0 0 2px #2196F3; }
+    60%  { box-shadow: 0 0 0 2px #00BCD4; }
+    80%  { box-shadow: 0 0 0 2px #4CAF50; }
+    100% { box-shadow: 0 0 0 2px #E91E63; }
+}
 </style>
 """
 
