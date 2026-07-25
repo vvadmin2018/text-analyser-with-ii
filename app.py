@@ -102,17 +102,11 @@ section[data-testid="stSidebar"] .st-emotion-cache-10trblm,
 section[data-testid="stSidebar"] .st-emotion-cache-1wmy9hl {
     color: #fafafa !important;
 }
-button[data-testid="stSidebarCollapsedButton"],
-button[data-testid="stSidebarCollapseButton"] {
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapseButton"] * {
     color: #FFD700 !important;
-}
-button[data-testid="stSidebarCollapsedButton"] svg,
-button[data-testid="stSidebarCollapseButton"] svg,
-button[data-testid="stSidebarCollapsedButton"] svg path,
-button[data-testid="stSidebarCollapseButton"] svg path {
     fill: #FFD700 !important;
     stroke: #FFD700 !important;
-    color: #FFD700 !important;
 }
 </style>
 """ if st.session_state.dark_mode else "")
