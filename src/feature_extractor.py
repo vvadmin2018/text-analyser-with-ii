@@ -4,6 +4,7 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 import string
 import numpy as np
 import re
+from collections import Counter
 from src import config
 
 # Определяем доступные морфологические анализаторы
@@ -116,6 +117,48 @@ class FeatureExtractor:
             'яны', 'гэта', 'гэты', 'гэтая', 'гэтае', 'гэтыя'
         ])
 
+    def _mattr(self, words, window_size=None):
+        """
+        MATTR — Moving-Average Type-Token Ratio (Covington & McFall, 2010).
+
+        Раньше здесь считался RTTR = |уникальных слов| / sqrt(N), а он
+        сильно "плывёт" вместе с длиной текста: для короткого анонимного
+        отрывка в полсотни слов и для главы автора в пару тысяч слов
+        значения получаются совершенно разного порядка, даже если стиль
+        идентичен. Именно это чаще всего утаскивало признак "TTR" далеко
+        за пределы диапазона автора (см. разбор в чате).
+
+        MATTR устойчив к длине: считаем TTR не по всему тексту сразу, а
+        как среднее TTR по скользящим окнам ФИКСИРОВАННОГО размера — тогда
+        50-словный отрывок и 2000-словная глава сравниваются на равных
+        условиях, а не по случайно попавшей под руку длине куска.
+        """
+        n = len(words)
+        if n == 0:
+            return 0.0
+
+        w = window_size or config.MATTR_WINDOW
+
+        if n <= w:
+            # Текст короче окна (бывает у совсем коротких анонимных
+            # отрывков) — окно ужимать некуда, считаем обычный TTR по
+            # всему, что есть. Это единственный разумный вариант для
+            # таких случаев, а не ошибка.
+            return len(set(words)) / n
+
+        counts = Counter(words[:w])
+        ttrs = [len(counts) / w]
+
+        for i in range(w, n):
+            old_word, new_word = words[i - w], words[i]
+            counts[old_word] -= 1
+            if counts[old_word] == 0:
+                del counts[old_word]
+            counts[new_word] += 1
+            ttrs.append(len(counts) / w)
+
+        return float(np.mean(ttrs))
+
     def _analyze_with_pymorphy(self, words_original):
         """Анализ текста с помощью pymorphy2 (для русского языка)"""
         if self.morph is None:
@@ -187,15 +230,18 @@ class FeatureExtractor:
                 continue
 
             # Существительные: частые окончания
-            if any(wl.endswith(s) for s in ('а', 'я', 'о', 'е', 'ы', 'и', 'у', 'ю', 'ь', 'й', 'ам', 'ах', 'ей', 'ям', 'ях', 'ой')):
+            if any(wl.endswith(s) for s in
+                   ('а', 'я', 'о', 'е', 'ы', 'и', 'у', 'ю', 'ь', 'й', 'ам', 'ах', 'ей', 'ям', 'ях', 'ой')):
                 nouns += 1
                 words_main.append(w)
             # Глаголы: окончания
-            elif any(wl.endswith(s) for s in ('ть', 'ти', 'чь', 'ться', 'тся', 'л', 'ла', 'ли', 'ло', 'ет', 'ют', 'ит', 'ат', 'ят')):
+            elif any(wl.endswith(s) for s in
+                     ('ть', 'ти', 'чь', 'ться', 'тся', 'л', 'ла', 'ли', 'ло', 'ет', 'ют', 'ит', 'ат', 'ят')):
                 verbs += 1
                 words_main.append(w)
             # Прилагательные: окончания
-            elif any(wl.endswith(s) for s in ('ый', 'ий', 'ой', 'ая', 'яя', 'ое', 'ее', 'ые', 'ие', 'ым', 'им', 'ых', 'их')):
+            elif any(wl.endswith(s) for s in
+                     ('ый', 'ий', 'ой', 'ая', 'яя', 'ое', 'ее', 'ые', 'ие', 'ым', 'им', 'ых', 'их')):
                 adjs += 1
                 words_main.append(w)
             else:
@@ -253,7 +299,7 @@ class FeatureExtractor:
         A5  - доля восклицательных предложений
         A6  - доля предложений с троеточиями
         A7  - доля предложений с прямой речью
-        Б1  - лексическое богатство (RTTR)
+        Б1  - лексическое богатство (MATTR, устойчив к длине текста)
         Б2  - доля существительных
         Б3  - доля глаголов
         Б4  - доля прилагательных
@@ -321,10 +367,10 @@ class FeatureExtractor:
 
         # ===== Группа Б: Лексические признаки =====
 
-        # Б1: RTTR
-        unique_words = set(words)
-        rttr = len(unique_words) / (len(words) ** 0.5)
-        features.append(rttr)
+        # Б1: MATTR (устойчив к длине текста, в отличие от старого RTTR — см. _mattr)
+        mattr = self._mattr(words)
+
+        features.append(mattr)
         print("DEBUG: Группа Б: Лексические признаки")
 
         # ===== Морфологический анализ (выбор метода по языку) =====
@@ -334,9 +380,9 @@ class FeatureExtractor:
             nouns, verbs, adjs, conjs, preps, total_words, words_main = self._analyze_with_pymorphy(words_original)
 
         # Б2-Б5: Части речи и длина слова
-        print("DEBUG: сущ "+ str(nouns))
+        print("DEBUG: сущ " + str(nouns))
         print("DEBUG: total " + str(total_words))
-              #+ "глаголы "+ verbs + " " + adjs + " " +  conjs + " " +  preps + " " +  total_words + " " +  words_main)
+        # + "глаголы "+ verbs + " " + adjs + " " +  conjs + " " +  preps + " " +  total_words + " " +  words_main)
         features.append(nouns / total_words if total_words > 0 else 0)  # Б2
         features.append(verbs / total_words if total_words > 0 else 0)  # Б3
         features.append(adjs / total_words if total_words > 0 else 0)  # Б4

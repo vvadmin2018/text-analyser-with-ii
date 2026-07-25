@@ -296,11 +296,18 @@ class StyleRose:
         ax1.grid(True, alpha=0.3, axis='y')
         ax1.set_ylim(0, max(max(similarities), max(contributions)) * 1.2)
 
-        # Добавляем значения на столбцы
+        # Добавляем значения на столбцы. Для очень маленьких значений (текст
+        # далеко за пределами диапазона автора по этому признаку) двух знаков
+        # после запятой недостаточно — они все схлопываются в одинаковый
+        # "0.00", будто это ровно ноль. Показываем больше знаков для таких
+        # случаев, чтобы было видно, что значения разные (просто маленькие).
+        def fmt_value(v):
+            return f'{v:.2f}' if v >= 0.01 else f'{v:.4f}'
+
         for i, (sim, contrib) in enumerate(zip(similarities, contributions)):
-            ax1.text(i - width / 2, sim + 0.02, f'{sim:.2f}',
+            ax1.text(i - width / 2, sim + 0.02, fmt_value(sim),
                      ha='center', va='bottom', fontsize=8)
-            ax1.text(i + width / 2, contrib + 0.02, f'{contrib:.2f}',
+            ax1.text(i + width / 2, contrib + 0.02, fmt_value(contrib),
                      ha='center', va='bottom', fontsize=8)
 
         # График 2: Круговая диаграмма вкладов

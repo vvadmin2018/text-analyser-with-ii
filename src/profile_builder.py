@@ -19,22 +19,40 @@ class TriangularMembership:
         a_soft = self.a - self.softening
         c_soft = self.c + self.softening
 
-        if x <= a_soft or x >= c_soft:
-            return 0.001
-        elif x == self.b:
+        if x == self.b:
             return 1.0
         elif x < self.b:
-            if self.b == self.a:
+            left_span = self.b - a_soft
+            if left_span <= 0 or self.b == self.a:
                 return 1.0
-            # Плавный подъем от a_soft до b с экспоненциальным сглаживанием
-            ratio = (x - a_soft) / (self.b - a_soft)
-            return ratio ** 0.5  # смягченный подъем (квадратный корень для более высоких значений)
+            if x >= a_soft:
+                # Плавный подъем от a_soft до b
+                ratio = (x - a_soft) / left_span
+                return ratio ** 0.5  # смягченный подъем (квадратный корень для более высоких значений)
+            # За пределами a_soft — раньше здесь был жёсткий "пол" 0.001,
+            # ОДИНАКОВЫЙ для любого x, сколь угодно далеко ушедшего влево.
+            # Из-за этого два совершенно разных по степени "выброса" текста
+            # (например, средняя длина предложения 20 слов и 100 слов при
+            # диапазоне автора 6..12) получали ИДЕНТИЧНУЮ оценку 0.001 —
+            # на графике оба выглядели как одинаковый "нулевой показатель",
+            # хотя реально один текст гораздо ближе к автору, чем другой.
+            # Вместо этого продолжаем экспоненциальный спад пропорционально
+            # тому, на сколько "мягких зон" (softening) значение ушло за
+            # границу — чем дальше, тем меньше μ, но каждое значение
+            # получает СВОЙ, различимый результат.
+            overshoot = (a_soft - x) / self.softening if self.softening > 0 else 1.0
+            return 0.001 * float(np.exp(-overshoot))
         else:
-            if self.c == self.b:
+            right_span = c_soft - self.b
+            if right_span <= 0 or self.c == self.b:
                 return 1.0
-            # Плавный спуск от b до c_soft с экспоненциальным сглаживанием
-            ratio = (c_soft - x) / (c_soft - self.b)
-            return ratio ** 0.5  # смягченный спуск (квадратный корень для более высоких значений)
+            if x <= c_soft:
+                # Плавный спуск от b до c_soft
+                ratio = (c_soft - x) / right_span
+                return ratio ** 0.5  # смягченный спуск (квадратный корень для более высоких значений)
+            # Симметричный экспоненциальный "хвост" справа — см. комментарий выше.
+            overshoot = (x - c_soft) / self.softening if self.softening > 0 else 1.0
+            return 0.001 * float(np.exp(-overshoot))
 
     def __repr__(self):
         return f"TriangularMembership(a={self.a:.3f}, b={self.b:.3f}, c={self.c:.3f})"
@@ -84,7 +102,7 @@ class AuthorProfile:
                 if len(features) == num_props:
                     # Сохраняем признаки для таблицы
                     text_features_matrix.append(features.tolist())
-                    
+
                     for i, val in enumerate(features):
                         all_values[i].append(val)
                     print(f"    Значения: {[f'{v:.3f}' for v in features[:5]]}...")
@@ -104,26 +122,26 @@ class AuthorProfile:
         # ===== ПОСТРОЕНИЕ СВОДНОЙ ТАБЛИЦЫ =====
         if text_features_matrix:
             print(f"\n  📊 Сводная таблица признаков для автора '{self.name}':")
-            
+
             # Создаем DataFrame: строки - тексты, столбцы - признаки
             df = pd.DataFrame(text_features_matrix, columns=config.FEATURE_LIST)
-            
+
             # Добавляем номер текста
             df.insert(0, 'Текст №', range(1, len(df) + 1))
-            
+
             # Вычисляем среднее и медиану по каждому признаку (для всех текстов)
             mean_values = [round(np.mean(all_values[i]), 3) if all_values[i] else 0 for i in range(num_props)]
             median_values = [round(np.median(all_values[i]), 3) if all_values[i] else 0 for i in range(num_props)]
-            
+
             # Добавляем строки со средним и медианой
             mean_row = ['Среднее'] + mean_values
             median_row = ['Медиана'] + median_values
-            
+
             # Форматируем все числовые значения до 3 знаков после запятой
             df_formatted = df.copy()
             for col in config.FEATURE_LIST:
                 df_formatted[col] = df_formatted[col].apply(lambda x: round(x, 3))
-            
+
             # Выводим таблицу
             print("\n  " + "=" * (len(config.FEATURE_LIST) * 12 + 15))
             print(df_formatted.to_string(index=False))
@@ -131,7 +149,7 @@ class AuthorProfile:
             print(f"  Среднее:  {'  '.join([f'{v:>10}' for v in mean_values])}")
             print(f"  Медиана:  {'  '.join([f'{v:>10}' for v in median_values])}")
             print("  " + "=" * (len(config.FEATURE_LIST) * 12 + 15))
-            
+
             # Сохраняем статистику в объекте профиля для дальнейшего использования
             self.feature_stats = {
                 'mean': mean_values,
@@ -139,7 +157,7 @@ class AuthorProfile:
                 'text_count': len(texts),
                 'dataframe': df_formatted
             }
-            
+
             # ===== СОХРАНЕНИЕ ТАБЛИЦЫ В OUTPUT =====
             self._save_summary_table(df_formatted, mean_values, median_values)
 
@@ -152,16 +170,49 @@ class AuthorProfile:
                 # Если нет данных для признака, создаем функцию с широким диапазоном
                 a, b, c = 0.0, 0.5, 1.0
                 print(f"  ⚠️ Признак {i}: нет данных, используем значения по умолчанию")
+            elif len(values) == 1:
+                # Единственный текст — разброс оценить нечем, используем
+                # тот же запасной вариант "widen", что и ниже для std==0.
+                v = values[0]
+                a, c = (0.5 * v, 1.5 * v) if v != 0 else (-0.1, 0.1)
+                b = v
             else:
-                a = min(values)
-                c = max(values)
-                b = (a + c) / 2
+                # Раньше здесь брались буквальные min/max по обучающим
+                # текстам автора. При 7-10 текстах на автора это ЖЕСТКО
+                # занижает реальный разброс: min/max по маленькой выборке
+                # почти всегда уже, чем истинная вариативность автора, а
+                # SOFTENING (доля от этого и без того узкого span) не
+                # спасает — 0.8×(узкий span) остаётся узким. Именно это
+                # раньше "обнуляло" такие стабильные признаки, как средняя
+                # длина предложения и MATTR: автор пишет предложения
+                # медианной длины то 7, то 9 слов — а любой новый текст с
+                # медианой 8.2 воспринимался почти как выброс.
+                #
+                # Вместо min/max используем толерантный интервал
+                # среднее ± k·std (k = config.MEMBERSHIP_STD_MULTIPLIER).
+                # Это стандартный статистический приём для маленьких
+                # выборок: оценивать не наблюдённый разброс буквально, а
+                # правдоподобный разброс "типичного" текста этого автора.
+                mean_v = float(np.mean(values))
+                std_v = float(np.std(values, ddof=1))  # выборочное std (n-1)
 
-                # Защита от a == b == c
-                if b == c or a == b:
-                    a = 0.5 * a if a != 0 else 0.1
-                    c = 1.5 * c if c != 0 else 1.0
-                    b = (a + c) / 2
+                b = mean_v
+                spread = config.MEMBERSHIP_STD_MULTIPLIER * std_v
+                a = mean_v - spread
+                c = mean_v + spread
+
+                # Защита от вырожденного случая (все тексты дали ровно
+                # одно и то же значение признака -> std == 0)
+                if spread == 0:
+                    a = 0.5 * mean_v if mean_v != 0 else -0.1
+                    c = 1.5 * mean_v if mean_v != 0 else 0.1
+
+                # Ни один из 17 признаков не бывает отрицательным (доли,
+                # счётчики, дисперсия) — отсекаем нижнюю границу снизу,
+                # даже если std "утащил" её в минус.
+                a = max(a, 0.0)
+                if c <= a:
+                    c = a + (0.1 if a == 0 else 0.1 * a)
 
             # Создаем функцию принадлежности
             self.features.append(TriangularMembership(a, b, c))
@@ -174,7 +225,7 @@ class AuthorProfile:
     def _save_summary_table(self, df_formatted, mean_values, median_values):
         """
         Сохраняет сводную таблицу признаков в output в форматах HTML и TXT
-        
+
         Args:
             df_formatted: DataFrame с данными по текстам
             mean_values: список средних значений по признакам
@@ -183,34 +234,34 @@ class AuthorProfile:
         import os
         from datetime import datetime
         import pandas as pd
-        
+
         # Создаем директорию output если не существует
         output_dir = config.OUTPUT_DIR_MAIN
         os.makedirs(output_dir, exist_ok=True)
-        
+
         # Создаем поддиректорию с текущей датой и временем
         timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
         author_dir = os.path.join(output_dir, f"{timestamp}_{self.name}")
         os.makedirs(author_dir, exist_ok=True)
-        
+
         # Добавляем строки со средним и медианой в DataFrame для сохранения
         df_with_stats = df_formatted.copy()
-        
+
         # Создаем строку среднего
         mean_row_dict = {'Текст №': 'Среднее'}
         for i, col in enumerate(config.FEATURE_LIST):
             mean_row_dict[col] = mean_values[i]
-        
+
         # Создаем строку медианы
         median_row_dict = {'Текст №': 'Медиана'}
         for i, col in enumerate(config.FEATURE_LIST):
             median_row_dict[col] = median_values[i]
-        
+
         # Добавляем строки в DataFrame
         mean_row_df = pd.DataFrame([mean_row_dict])
         median_row_df = pd.DataFrame([median_row_dict])
         df_with_stats = pd.concat([df_with_stats, mean_row_df, median_row_df], ignore_index=True)
-        
+
         # Сохраняем в HTML
         html_file = os.path.join(author_dir, f"{self.name}_summary.html")
         html_content = f"""<!DOCTYPE html>
@@ -237,10 +288,10 @@ class AuthorProfile:
     {df_with_stats.to_html(index=False, classes='data-table', na_rep="N/A")}
 </body>
 </html>"""
-        
+
         with open(html_file, 'w', encoding='utf-8') as f:
             f.write(html_content)
-        
+
         # Сохраняем в TXT
         txt_file = os.path.join(author_dir, f"{self.name}_summary.txt")
         with open(txt_file, 'w', encoding='utf-8') as f:
@@ -248,14 +299,14 @@ class AuthorProfile:
             f.write(f"Количество текстов: {len(df_formatted)}\n")
             f.write(f"Дата генерации: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n")
             f.write("=" * (len(config.FEATURE_LIST) * 12 + 15) + "\n\n")
-            
+
             # Вывод таблицы в текстовом формате
             f.write(df_with_stats.to_string(index=False))
             f.write("\n\n")
-            
+
             f.write("=" * (len(config.FEATURE_LIST) * 12 + 15) + "\n")
             f.write("Примечание: все значения округлены до 3 знаков после запятой\n")
-        
+
         print(f"  💾 Таблица сохранена в:\n     HTML: {html_file}\n     TXT:  {txt_file}")
 
     def get_weights(self):
@@ -275,12 +326,12 @@ class AuthorProfile:
     def similarity(self, text_features, use_weights=True, custom_weights=None):
         """
         Вычисляет сходство с вектором признаков текста
-        
+
         Args:
             text_features: массив признаков текста
             use_weights: использовать ли веса признаков
             custom_weights: пользовательские веса (если None, используются веса из config)
-            
+
         Returns:
             float: степень сходства от 0 до 1
         """
@@ -330,7 +381,7 @@ class AuthorProfile:
                 print(f"    {i:<2} {mu:<6.3f} {weight:<5.1f} {contribution:<8.3f}")
 
         result = weighted_sum / total_weight if total_weight > 0 else 0
-        
+
         if config.LEVEL_LOG == "DEBUG":
             print(f"    {'-' * 25}")
             print(f"    ИТОГО: {result:.3f}")
@@ -340,10 +391,10 @@ class AuthorProfile:
     def similarity_with_details(self, text_features):
         """
         Возвращает сходство и детали (μ, веса, вклады)
-        
+
         Args:
             text_features: массив признаков текста
-            
+
         Returns:
             tuple: (сходство, (similarities, weights, contributions))
         """
