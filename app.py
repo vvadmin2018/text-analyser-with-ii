@@ -350,6 +350,7 @@ with col_charts:
         with chart_col1:
             fig1 = StyleRose.plot_authors_comparison(results, title="Схожесть с авторами")
             fig1.set_size_inches(8, 5.5)
+            fig1.tight_layout()
             fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
             st.pyplot(fig1)
             plt.close(fig1)
@@ -363,6 +364,7 @@ with col_charts:
                     title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
                 )
                 fig2.set_size_inches(8, 5.5)
+                fig2.tight_layout()
                 fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
                 st.pyplot(fig2)
                 plt.close(fig2)

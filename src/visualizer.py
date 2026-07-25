@@ -379,10 +379,6 @@ class StyleRose:
         plt.title(title + "\n(закрашенная полоса — реальный диапазон [a, c] автора)",
                   size=12.5, fontweight='bold', pad=24, color=INK_TEXT)
 
-        ax.legend(loc='upper right', bbox_to_anchor=(1.38, 1.12),
-                  frameon=True, fancybox=True, fontsize=8.8, borderpad=0.8,
-                  labelspacing=0.7)
-
         plt.tight_layout()
         return fig
 
@@ -515,10 +511,9 @@ class StyleRose:
         ax.set_axisbelow(True)
 
         # Цветные зоны уверенности (согласованы с порогами раскраски столбцов выше)
-        ax.axhspan(0, 0.3, color=CONF_LOW, alpha=0.06, label='Низкая уверенность', zorder=0)
-        ax.axhspan(0.3, 0.6, color=CONF_MID, alpha=0.06, label='Средняя уверенность', zorder=0)
-        ax.axhspan(0.6, 1.0, color=CONF_HIGH, alpha=0.06, label='Высокая уверенность', zorder=0)
-        ax.legend(loc='lower right', fontsize=9, framealpha=0.9)
+        ax.axhspan(0, 0.3, color=CONF_LOW, alpha=0.06, zorder=0)
+        ax.axhspan(0.3, 0.6, color=CONF_MID, alpha=0.06, zorder=0)
+        ax.axhspan(0.6, 1.0, color=CONF_HIGH, alpha=0.06, zorder=0)
 
         plt.tight_layout()
         return fig
