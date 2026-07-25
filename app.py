@@ -155,19 +155,26 @@ div.analyze-section button:hover {
     background-color: #A0760A !important;
     border-color: #6B4F06 !important;
 }
+.stTextArea {
+    position: relative !important;
+}
+.stTextArea:focus-within::before {
+    content: '';
+    position: absolute;
+    top: -3px; left: -3px; right: -3px; bottom: -3px;
+    border-radius: 4px;
+    background: conic-gradient(#E91E63, #9C27B0, #2196F3, #00BCD4, #4CAF50, #FFEB3B, #FF9800, #E91E63);
+    z-index: -1;
+    animation: spin 4s linear infinite;
+    pointer-events: none;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
 .stTextArea textarea:focus {
     outline: none !important;
     border-color: transparent !important;
-    box-shadow: 0 0 0 2px #E91E63 !important;
-    animation: borderGlow 3s ease-in-out infinite !important;
-}
-@keyframes borderGlow {
-    0%   { box-shadow: 0 0 0 2px #E91E63; }
-    20%  { box-shadow: 0 0 0 2px #9C27B0; }
-    40%  { box-shadow: 0 0 0 2px #2196F3; }
-    60%  { box-shadow: 0 0 0 2px #00BCD4; }
-    80%  { box-shadow: 0 0 0 2px #4CAF50; }
-    100% { box-shadow: 0 0 0 2px #E91E63; }
+    box-shadow: none !important;
 }
 </style>
 """
