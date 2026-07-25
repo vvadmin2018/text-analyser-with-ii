@@ -263,9 +263,16 @@ with col_input:
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
-        if st.button("🔄 Новый анализ"):
-            st.session_state.results = None
-            st.rerun()
+        col_a, col_b = st.columns(2, gap="small")
+        with col_a:
+            if st.button("🔄 Новый анализ"):
+                st.session_state.results = None
+                st.rerun()
+        with col_b:
+            if st.button("✕ Очистить"):
+                st.session_state.results = None
+                st.session_state.input_text = ""
+                st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.results:
