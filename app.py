@@ -313,61 +313,30 @@ with col_charts:
             for name, profile in profiles.items()
         }
 
-        st.subheader("")
-                     #"📊 Графики")
-
         ts = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         out_dir = os.path.join("output", ts, "")
         os.makedirs(out_dir, exist_ok=True)
 
-        fig1 = StyleRose.plot_authors_comparison(
-            results, title=f"Схожесть с авторами"
-        )
-        fig1.set_size_inches(9, 5)
-        fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
-        st.pyplot(fig1, use_container_width=True)
-        plt.close(fig1)
+        chart_col1, chart_col2 = st.columns(2, gap="medium")
 
-        # Розы: закрашенная полоса — реальный диапазон [a, c] автора,
-        # линия — типичное значение (b), плюс отдельная линия анонимного
-        # текста, чтобы сразу видеть, попадает ли он в полосу автора.
-        for author_name in profiles.keys():
-            author_color = config.AUTHOR_COLORS.get(author_name, config.AUTHOR_COLORS['default'])
-            score = results[author_name]
+        with chart_col1:
+            fig1 = StyleRose.plot_authors_comparison(results, title="Схожесть с авторами")
+            fig1.set_size_inches(5, 3.5)
+            fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
+            st.pyplot(fig1, use_container_width=True)
+            plt.close(fig1)
+
+        with chart_col2:
             try:
-                fig = StyleRose.plot_fuzzy_rose(
+                fig2 = StyleRose.plot_fuzzy_rose(
                     all_authors_ranges, anon_features, feature_names,
-                    authors_to_plot=[author_name],
-                    author_colors={author_name: author_color},
-                    title=f"{author_display(author_name)} vs аноним ({score:.1%})",
+                    authors_to_plot=[best_author],
+                    author_colors={best_author: author_color},
+                    title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
                 )
-                fig.set_size_inches(7, 5)
-                fig.savefig(os.path.join(out_dir, f"{author_name}_vs_anon.png"), dpi=150, bbox_inches='tight')
-                plt.close(fig)
+                fig2.set_size_inches(5, 3.5)
+                fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
+                st.pyplot(fig2, use_container_width=True)
+                plt.close(fig2)
             except Exception as e:
-                st.warning(f"Не удалось построить розу для «{author_display(author_name)}»: {e}")
-
-        for author_name, (sims, weights, contribs) in similarity_details.items():
-            try:
-                fig = StyleRose.plot_feature_importance(
-                    author_display(author_name), sims, weights, contribs, config.FEATURE_LIST_SHORT,
-                    title=f"Важность признаков: {author_display(author_name)} ({results[author_name]:.1%})"
-                )
-                fig.savefig(os.path.join(out_dir, f"feature_importance_{author_name}.png"), dpi=150, bbox_inches='tight')
-                plt.close(fig)
-            except Exception as e:
-                st.warning(f"Не удалось построить график важности признаков для «{author_display(author_name)}»: {e}")
-
-        try:
-            fig2 = StyleRose.plot_fuzzy_rose(
-                all_authors_ranges, anon_features, feature_names,
-                authors_to_plot=[best_author],
-                author_colors={best_author: author_color},
-                title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
-            )
-            fig2.set_size_inches(7, 5)
-            fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
-            st.pyplot(fig2, use_container_width=True)
-            plt.close(fig2)
-        except Exception as e:
-            st.warning(f"Не удалось построить итоговую розу для «{author_display(best_author)}»: {e}")
+                st.warning(f"Не удалось построить итоговую розу: {e}")
