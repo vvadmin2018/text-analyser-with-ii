@@ -105,35 +105,27 @@ section[data-testid="stSidebar"] .st-emotion-cache-1wmy9hl {
 </style>
 """ if st.session_state.dark_mode else "")
 
-st.markdown(f"""
+PAPER_CSS = """
 <style>
-@keyframes fly {{
-    0% {{ transform: translateX(0px) translateY(0px); }}
-    25% {{ transform: translateX(50px) translateY(-12px); }}
-    50% {{ transform: translateX(0px) translateY(0px); }}
-    75% {{ transform: translateX(-50px) translateY(-12px); }}
-    100% {{ transform: translateX(0px) translateY(0px); }}
-}}
-.ghost-fly {{
-    animation: fly 5s ease-in-out infinite;
-    font-size: 64px;
-    text-align: center;
-    display: block;
-    line-height: 1;
-    cursor: default;
-    margin-bottom: -30px;
-    margin-top: -20px;
-}}
-h1 {{
+.stApp {
+    background-color: #F5F0E1;
+}
+.stTextArea textarea {
+    background-color: #FAF6ED !important;
+}
+section[data-testid="stSidebar"] {
+    background-color: #ECE6D3 !important;
+}
+h1 {
     margin-top: -24px !important;
     padding-top: 0 !important;
-}}
+}
 </style>
-{DARK_EXTRA}
-<div class="ghost-fly">👻</div>
-""", unsafe_allow_html=True)
+"""
 
-st.title("THinkING")
+st.markdown(PAPER_CSS + DARK_EXTRA, unsafe_allow_html=True)
+
+st.title("🪶 Думающие чернила")
 
 
 
