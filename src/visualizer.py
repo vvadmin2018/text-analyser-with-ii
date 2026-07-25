@@ -374,7 +374,7 @@ class StyleRose:
         ax.axhspan(0.3, 0.6, color='orange', alpha=0.05, label='Средняя уверенность')
         ax.axhspan(0.6, 1.0, color='green', alpha=0.05, label='Высокая уверенность')
 
-        ax.legend(loc='upper right')
+        ax.legend(loc='upper right', fontsize=8, handlelength=1, handleheight=1)
 
         plt.tight_layout()
         return fig

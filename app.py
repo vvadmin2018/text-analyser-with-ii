@@ -43,6 +43,8 @@ if "last_lang" not in st.session_state:
     st.session_state.last_lang = None
 if "results" not in st.session_state:
     st.session_state.results = None
+if "input_text" not in st.session_state:
+    st.session_state.input_text = ""
 
 st.sidebar.header("Настройки")
 st.session_state.dark_mode = st.sidebar.checkbox("🌙 Тёмная тема", value=st.session_state.dark_mode)
@@ -53,6 +55,7 @@ cur_lang = lang_cfg["lang"]
 if st.session_state.last_lang != lang_name:
     st.session_state.profiles = None
     st.session_state.results = None
+    st.session_state.input_text = ""
     st.session_state.last_lang = lang_name
 
 profile_path = lang_cfg["pickle"]
@@ -103,7 +106,9 @@ section[data-testid="stSidebar"] .st-emotion-cache-1wmy9hl {
     color: #fafafa !important;
 }
 [data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarCollapseButton"] * {
+[data-testid="stSidebarCollapseButton"] *,
+[data-testid="stSidebarCollapsedButton"],
+[data-testid="stSidebarCollapsedButton"] * {
     color: #FFD700 !important;
     fill: #FFD700 !important;
     stroke: #FFD700 !important;
@@ -173,6 +178,7 @@ if st.session_state.profiles is None:
         if st.sidebar.button("🔄 Переобучить"):
             st.session_state.profiles = None
             st.session_state.results = None
+            st.session_state.input_text = ""
             if os.path.exists(profile_path):
                 os.remove(profile_path)
             st.rerun()
@@ -203,6 +209,7 @@ else:
     if st.sidebar.button("🔄 Переобучить"):
         st.session_state.profiles = None
         st.session_state.results = None
+        st.session_state.input_text = ""
         if os.path.exists(profile_path):
             os.remove(profile_path)
         st.rerun()
@@ -212,48 +219,56 @@ st.markdown("---")
 col_input, col_charts = st.columns([3, 2], gap="medium")
 
 with col_input:
-    user_text = st.text_area("Введите текст для анализа:", height=250,
-                             placeholder="Вставьте текст на русском или белорусском языке...")
-    st.caption(f"Длина текста: {len(user_text)} символов")
+    if st.session_state.results is None:
+        user_text = st.text_area("Введите текст для анализа:", height=250,
+                                 placeholder="Вставьте текст на русском или белорусском языке...",
+                                 value=st.session_state.input_text)
+        st.session_state.input_text = user_text
+        st.caption(f"Длина текста: {len(user_text)} символов")
 
-    st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
-    if st.button("Анализировать"):
-        if st.session_state.profiles is None:
-            st.error("Сначала обучите профили авторов.")
-        elif not user_text.strip():
-            st.warning("Введите текст для анализа.")
-        elif len(user_text.strip()) < 400:
-            st.warning(f"Текст слишком короткий (минимум 400 символов, сейчас {len(user_text.strip())}).")
-        else:
-            profiles = st.session_state.profiles
-            with st.spinner("Анализ..."):
-                extractor = FeatureExtractor(language=cur_lang)
-                anon_features = extractor.extract(user_text)
+        st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
+        if st.button("Анализировать"):
+            if st.session_state.profiles is None:
+                st.error("Сначала обучите профили авторов.")
+            elif not user_text.strip():
+                st.warning("Введите текст для анализа.")
+            elif len(user_text.strip()) < 400:
+                st.warning(f"Текст слишком короткий (минимум 400 символов, сейчас {len(user_text.strip())}).")
+            else:
+                profiles = st.session_state.profiles
+                with st.spinner("Анализ..."):
+                    extractor = FeatureExtractor(language=cur_lang)
+                    anon_features = extractor.extract(user_text)
 
-                results = {}
-                similarity_details = {}
-                for author_name, profile in profiles.items():
-                    sim, details = profile.similarity_with_details(anon_features)
-                    results[author_name] = sim
-                    similarity_details[author_name] = details
+                    results = {}
+                    similarity_details = {}
+                    for author_name, profile in profiles.items():
+                        sim, details = profile.similarity_with_details(anon_features)
+                        results[author_name] = sim
+                        similarity_details[author_name] = details
 
-                best_author = max(results, key=results.get)
-                best_score = results[best_author]
+                    best_author = max(results, key=results.get)
+                    best_score = results[best_author]
 
-            st.session_state.results = {
-                "best_author": best_author,
-                "best_score": best_score,
-                "results": results,
-                "anon_features": anon_features,
-                "similarity_details": similarity_details,
-                "profiles": profiles,
-            }
+                st.session_state.results = {
+                    "best_author": best_author,
+                    "best_score": best_score,
+                    "results": results,
+                    "anon_features": anon_features,
+                    "similarity_details": similarity_details,
+                    "profiles": profiles,
+                }
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
+        if st.button("🔄 Новый анализ"):
+            st.session_state.results = None
             st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.results:
         r = st.session_state.results
-        st.markdown("---")
         score_pct = r["best_score"] * 100
         if r["best_score"] >= 0.7:
             color = "green"
