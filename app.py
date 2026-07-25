@@ -106,12 +106,16 @@ section[data-testid="stSidebar"] .st-emotion-cache-1wmy9hl {
     color: #fafafa !important;
 }
 [data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarCollapseButton"] *,
-[data-testid="stSidebarCollapsedButton"],
-[data-testid="stSidebarCollapsedButton"] * {
+[data-testid="stSidebarCollapseButton"] * {
     color: #FFD700 !important;
     fill: #FFD700 !important;
     stroke: #FFD700 !important;
+}
+[data-testid="stSidebarCollapsedButton"],
+[data-testid="stSidebarCollapsedButton"] * {
+    color: #4A90D9 !important;
+    fill: #4A90D9 !important;
+    stroke: #4A90D9 !important;
 }
 </style>
 """ if st.session_state.dark_mode else "")
