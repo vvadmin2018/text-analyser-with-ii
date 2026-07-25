@@ -129,6 +129,15 @@ h1 {
     background-color: #B89976 !important;
     border-color: #8A6E4E !important;
 }
+.analyze-section button {
+    background-color: #D32F2F !important;
+    color: #FFFFFF !important;
+    border-color: #B71C1C !important;
+}
+.analyze-section button:hover {
+    background-color: #C62828 !important;
+    border-color: #8E0000 !important;
+}
 </style>
 """
 
@@ -201,6 +210,7 @@ with col_input:
                              placeholder="Вставьте текст на русском или белорусском языке...")
     st.caption(f"Длина текста: {len(user_text)} символов")
 
+    st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
     if st.button("🔍 Анализировать", type="primary"):
         if st.session_state.profiles is None:
             st.error("Сначала обучите профили авторов.")
@@ -233,6 +243,7 @@ with col_input:
                 "profiles": profiles,
             }
             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.results:
         r = st.session_state.results
