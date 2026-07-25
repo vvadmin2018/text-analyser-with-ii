@@ -102,6 +102,11 @@ section[data-testid="stSidebar"] .st-emotion-cache-10trblm,
 section[data-testid="stSidebar"] .st-emotion-cache-1wmy9hl {
     color: #fafafa !important;
 }
+[data-testid="stSidebarCollapsedButton"] svg,
+[data-testid="stSidebarCollapseButton"] svg {
+    fill: #FFD700 !important;
+    color: #FFD700 !important;
+}
 </style>
 """ if st.session_state.dark_mode else "")
 
