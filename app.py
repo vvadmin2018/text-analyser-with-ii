@@ -216,7 +216,8 @@ else:
     st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("---")
-col_input, col_charts = st.columns([3, 2], gap="medium")
+col_ratio = [1, 3] if st.session_state.results is not None else [3, 2]
+col_input, col_charts = st.columns(col_ratio, gap="medium")
 
 with col_input:
     if st.session_state.results is None:
@@ -322,7 +323,7 @@ with col_charts:
         fig1 = StyleRose.plot_authors_comparison(
             results, title=f"Схожесть с авторами"
         )
-        fig1.set_size_inches(7, 4)
+        fig1.set_size_inches(9, 5)
         fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
         st.pyplot(fig1, use_container_width=True)
         plt.close(fig1)

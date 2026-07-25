@@ -260,9 +260,6 @@ class StyleRose:
 
         plt.title(title + "\n(закрашенная полоса — реальный диапазон [a, c] автора)",
                   size=13, fontweight='bold', pad=20)
-        plt.legend(loc='upper left', bbox_to_anchor=(0, 1.15),
-                   frameon=True, fancybox=True, shadow=False, fontsize=8,
-                   framealpha=0.85, ncol=3)
         plt.tight_layout()
         return fig
 
@@ -373,8 +370,6 @@ class StyleRose:
         ax.axhspan(0, 0.3, color='red', alpha=0.05, label='Низкая уверенность')
         ax.axhspan(0.3, 0.6, color='orange', alpha=0.05, label='Средняя уверенность')
         ax.axhspan(0.6, 1.0, color='green', alpha=0.05, label='Высокая уверенность')
-
-        ax.legend(loc='upper right', fontsize=8, handlelength=1, handleheight=1)
 
         plt.tight_layout()
         return fig
