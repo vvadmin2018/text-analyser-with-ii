@@ -129,14 +129,12 @@ h1 {
     background-color: #B89976 !important;
     border-color: #8A6E4E !important;
 }
-.analyze-section button[kind="primary"],
-.analyze-section button[data-testid="baseButton-primary"] {
+div.analyze-section button {
     background-color: #B8860B !important;
     color: #FFFFFF !important;
     border-color: #8B6508 !important;
 }
-.analyze-section button[kind="primary"]:hover,
-.analyze-section button[data-testid="baseButton-primary"]:hover {
+div.analyze-section button:hover {
     background-color: #A0760A !important;
     border-color: #6B4F06 !important;
 }
@@ -213,7 +211,7 @@ with col_input:
     st.caption(f"Длина текста: {len(user_text)} символов")
 
     st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
-    if st.button("🔍 Анализировать", type="primary"):
+    if st.button("🔍 Анализировать"):
         if st.session_state.profiles is None:
             st.error("Сначала обучите профили авторов.")
         elif not user_text.strip():
