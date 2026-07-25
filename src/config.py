@@ -18,7 +18,7 @@ AUTHOR_LABELS = {
     'pushkin': 'Пушкин',
     'tolstoy': 'Толстой',
     'bulichev': 'Кир Булычёв',
-    'drugkov': 'Юрий Дружков',
+    'drugkov': 'Юрий Дружков (Постников)',
     'saharnov': 'Святослав Сахарнов',
     'kolas': 'Колас',
     'maur': 'Маўр',
