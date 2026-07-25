@@ -228,51 +228,50 @@ with col_input:
         st.caption(f"Длина текста: {len(user_text)} символов")
 
         st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
-        if st.button("Анализировать"):
-            if st.session_state.profiles is None:
-                st.error("Сначала обучите профили авторов.")
-            elif not user_text.strip():
-                st.warning("Введите текст для анализа.")
-            elif len(user_text.strip()) < 400:
-                st.warning(f"Текст слишком короткий (минимум 400 символов, сейчас {len(user_text.strip())}).")
-            else:
-                profiles = st.session_state.profiles
-                with st.spinner("Анализ..."):
-                    extractor = FeatureExtractor(language=cur_lang)
-                    anon_features = extractor.extract(user_text)
+        col_a, col_b = st.columns(2, gap="small")
+        with col_a:
+            if st.button("Анализировать"):
+                if st.session_state.profiles is None:
+                    st.error("Сначала обучите профили авторов.")
+                elif not user_text.strip():
+                    st.warning("Введите текст для анализа.")
+                elif len(user_text.strip()) < 400:
+                    st.warning(f"Текст слишком короткий (минимум 400 символов, сейчас {len(user_text.strip())}).")
+                else:
+                    profiles = st.session_state.profiles
+                    with st.spinner("Анализ..."):
+                        extractor = FeatureExtractor(language=cur_lang)
+                        anon_features = extractor.extract(user_text)
 
-                    results = {}
-                    similarity_details = {}
-                    for author_name, profile in profiles.items():
-                        sim, details = profile.similarity_with_details(anon_features)
-                        results[author_name] = sim
-                        similarity_details[author_name] = details
+                        results = {}
+                        similarity_details = {}
+                        for author_name, profile in profiles.items():
+                            sim, details = profile.similarity_with_details(anon_features)
+                            results[author_name] = sim
+                            similarity_details[author_name] = details
 
-                    best_author = max(results, key=results.get)
-                    best_score = results[best_author]
+                        best_author = max(results, key=results.get)
+                        best_score = results[best_author]
 
-                st.session_state.results = {
-                    "best_author": best_author,
-                    "best_score": best_score,
-                    "results": results,
-                    "anon_features": anon_features,
-                    "similarity_details": similarity_details,
-                    "profiles": profiles,
-                }
+                    st.session_state.results = {
+                        "best_author": best_author,
+                        "best_score": best_score,
+                        "results": results,
+                        "anon_features": anon_features,
+                        "similarity_details": similarity_details,
+                        "profiles": profiles,
+                    }
+                    st.rerun()
+        with col_b:
+            if st.button("✕ Очистить"):
+                st.session_state.input_text = ""
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
-        col_a, col_b = st.columns(2, gap="small")
-        with col_a:
-            if st.button("🔄 Новый анализ"):
-                st.session_state.results = None
-                st.rerun()
-        with col_b:
-            if st.button("✕ Очистить"):
-                st.session_state.results = None
-                st.session_state.input_text = ""
-                st.rerun()
+        if st.button("🔄 Новый анализ"):
+            st.session_state.results = None
+            st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.results:
