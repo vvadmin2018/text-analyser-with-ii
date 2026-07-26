@@ -303,25 +303,26 @@ with col_input:
     if st.session_state.results:
         r = st.session_state.results
         score_pct = r["best_score"] * 100
-        if r["best_score"] >= 0.7:
-            color = "green"
-            label = "Высокая уверенность"
-        elif r["best_score"] >= 0.5:
-            color = "orange"
-            label = "Средняя уверенность"
+        threshold = 0.6
+        if r["best_score"] >= threshold:
+            if r["best_score"] >= 0.7:
+                color = "green"
+                label = "Высокая уверенность"
+            else:
+                color = "orange"
+                label = "Средняя уверенность"
+            st.markdown(
+                f"<h3 style='color:{color};'>{author_display(r['best_author'])}</h3>",
+                unsafe_allow_html=True
+            )
+            st.markdown(f"**{score_pct:.1f}%** — {label}")
         else:
-            color = "red"
-            label = "Низкая уверенность"
-        st.markdown(
-            f"<h3 style='color:{color};'>{author_display(r['best_author'])}</h3>",
-            unsafe_allow_html=True
-        )
-        st.markdown(f"**{score_pct:.1f}%** — {label}")
+            st.markdown("<h3>Автор не определён</h3>", unsafe_allow_html=True)
+            st.markdown(f"Ни один автор не достиг порога уверенности ({threshold * 100:.0f}%). Лучший результат: **{author_display(r['best_author'])}** — {score_pct:.1f}%")
         st.markdown("---")
         st.markdown("**Все авторы:**")
         for author, score in sorted(r["results"].items(), key=lambda x: -x[1]):
-            marker = "✅" if author == r["best_author"] else ""
-            st.markdown(f"{author_display(author)}: {score:.1%} {marker}")
+            st.markdown(f"{author_display(author)}: {score:.1%}")
 
 with col_charts:
     if st.session_state.results and st.session_state.profiles:
