@@ -193,7 +193,7 @@ st.markdown(f"""
     <h1 style="margin:0 !important; padding:0 !important;">THinkING</h1>
     <p class="subtitle" style="margin:0; font-size:14px; color:#666;">Думающие чернила</p>
   </div>
-  <img src="data:image/png;base64,{ghost_b64}" style="height:100px; width:auto; margin-left:16px;">
+  <img src="data:image/png;base64,{ghost_b64}" style="height:200px; width:auto; margin-left:16px;">
 </div>
 """, unsafe_allow_html=True)
 
