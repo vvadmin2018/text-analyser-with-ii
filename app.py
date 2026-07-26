@@ -188,7 +188,7 @@ st.markdown("""
     <h1 style="margin:0 !important; padding:0 !important;">THinkING</h1>
     <p class="subtitle" style="margin:0; font-size:14px; color:#666;">Думающие чернила</p>
   </div>
-  <img src="resources/ghost_transparent_light_ink.png" style="height:80px; width:auto;">
+  <img src="resources/ghost_transparent_dark_ink.png" style="height:80px; width:auto;">
 </div>
 """, unsafe_allow_html=True)
 
