@@ -119,6 +119,7 @@ section[data-testid="stSidebar"] .st-emotion-cache-1wmy9hl {
     fill: #4A90D9 !important;
     stroke: #4A90D9 !important;
 }
+p.subtitle { color: #bbb !important; }
 </style>
 """ if st.session_state.dark_mode else "")
 
@@ -181,12 +182,15 @@ div.analyze-section button:hover {
 
 st.markdown(PAPER_CSS + DARK_EXTRA, unsafe_allow_html=True)
 
-col_title, col_ghost = st.columns([4, 1], gap="small")
-with col_title:
-    st.title("THinkING")
-    st.markdown("###### Думающие чернила")
-with col_ghost:
-    st.image("resources/ghost_transparent_light_ink.png", width=64)
+st.markdown("""
+<div style="display:flex; align-items:center; gap:8px;">
+  <div>
+    <h1 style="margin:0 !important; padding:0 !important;">THinkING</h1>
+    <p class="subtitle" style="margin:0; font-size:14px; color:#666;">Думающие чернила</p>
+  </div>
+  <img src="resources/ghost_transparent_light_ink.png" style="height:80px; width:auto;">
+</div>
+""", unsafe_allow_html=True)
 
 
 
