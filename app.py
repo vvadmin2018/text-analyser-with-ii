@@ -183,12 +183,13 @@ div.analyze-section button:hover {
 
 st.markdown(PAPER_CSS + DARK_EXTRA, unsafe_allow_html=True)
 
-ghost_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "ghost_transparent_dark_ink.png")
+ghost_file = "ghost_transparent_light_ink.png" if st.session_state.dark_mode else "ghost_transparent_dark_ink.png"
+ghost_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", ghost_file)
 with open(ghost_path, "rb") as f:
     ghost_b64 = base64.b64encode(f.read()).decode()
 
 st.markdown(f"""
-<div style="display:flex; align-items:center; gap:8px; max-width:fit-content; margin:0 auto; margin-top:-40px;">
+<div style="display:flex; align-items:center; gap:8px;">
   <div>
     <h1 style="margin:0 !important; padding:0 !important;">THinkING</h1>
     <p class="subtitle" style="margin:0; font-size:14px; color:#666;">Думающие чернила</p>
