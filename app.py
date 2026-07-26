@@ -1,3 +1,4 @@
+import base64
 import streamlit as st
 import nltk
 import matplotlib
@@ -182,13 +183,17 @@ div.analyze-section button:hover {
 
 st.markdown(PAPER_CSS + DARK_EXTRA, unsafe_allow_html=True)
 
-st.markdown("""
+ghost_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "ghost_transparent_dark_ink.png")
+with open(ghost_path, "rb") as f:
+    ghost_b64 = base64.b64encode(f.read()).decode()
+
+st.markdown(f"""
 <div style="display:flex; align-items:center; gap:8px;">
   <div>
     <h1 style="margin:0 !important; padding:0 !important;">THinkING</h1>
     <p class="subtitle" style="margin:0; font-size:14px; color:#666;">Думающие чернила</p>
   </div>
-  <img src="resources/ghost_transparent_dark_ink.png" style="height:100px; width:auto; margin-left:16px;">
+  <img src="data:image/png;base64,{ghost_b64}" style="height:100px; width:auto; margin-left:16px;">
 </div>
 """, unsafe_allow_html=True)
 
