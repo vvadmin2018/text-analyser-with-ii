@@ -181,8 +181,12 @@ div.analyze-section button:hover {
 
 st.markdown(PAPER_CSS + DARK_EXTRA, unsafe_allow_html=True)
 
-st.title("THinkING")
-st.markdown("###### Думающие чернила")
+col_title, col_ghost = st.columns([4, 1], gap="small")
+with col_title:
+    st.title("THinkING")
+    st.markdown("###### Думающие чернила")
+with col_ghost:
+    st.image("resources/ghost_transparent_light_ink.png", width=64)
 
 
 
