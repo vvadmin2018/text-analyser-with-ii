@@ -318,8 +318,8 @@ class FeatureExtractor:
 
         # Предварительная обработка
         sentences = sent_tokenize(text)
-        sentences_without_primaya_rech = [s for s in sentences if not s.startswith('–') and not s.startswith('—')]
-        sentences_primaya_rech = [s for s in sentences if s.startswith('–') or s.startswith('—')]
+        sentences_without_primaya_rech = [s for s in sentences if not s.startswith('–') and not s.startswith('—') and not s.startswith('-')]
+        sentences_primaya_rech = [s for s in sentences if s.startswith('–') or s.startswith('—') or s.startswith('-')]
 
         # Токенизация слов
         def keep_word(w):
