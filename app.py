@@ -1,25 +1,26 @@
+# app.py — веб-интерфейс THinkING (Streamlit)
+"""Веб-приложение: выбор языка, ввод текста, анализ авторства и графики."""
 import base64
-import streamlit as st
-import nltk
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import numpy as np
+import io
 import os
 import sys
-from datetime import datetime
 
-nltk.download('punkt', quiet=True)
-nltk.download('punkt_tab', quiet=True)
-nltk.download('stopwords', quiet=True)
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt  # noqa: E402
+import nltk                      # noqa: E402
+import streamlit as st           # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src import config
-from src.feature_extractor import FeatureExtractor, Language
-from src.profile_builder import AuthorProfile
-from src.visualizer import StyleRose
-from main import build_authors_profiles, save_profiles, load_profiles
+from src import config, io_utils, visualizer                  # noqa: E402
+from src.feature_extractor import FeatureExtractor, Language  # noqa: E402
+from src.identifier import identify                           # noqa: E402
+from src.profile_builder import AuthorProfile                 # noqa: E402
+from src.visualizer import StyleRose                          # noqa: E402
+from main import build_authors_profiles, load_profiles, save_profiles  # noqa: E402
+
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 LANG_OPTIONS = {
     "Русский": {
@@ -35,353 +36,538 @@ LANG_OPTIONS = {
 }
 
 st.set_page_config(page_title="THinkING", layout="wide")
+config.configure_logging()
 
-if "dark_mode" not in st.session_state:
-    st.session_state.dark_mode = False
-if "profiles" not in st.session_state:
-    st.session_state.profiles = None
-if "last_lang" not in st.session_state:
-    st.session_state.last_lang = None
-if "results" not in st.session_state:
-    st.session_state.results = None
-if "input_text" not in st.session_state:
-    st.session_state.input_text = ""
 
-st.sidebar.header("Настройки")
-st.session_state.dark_mode = st.sidebar.checkbox("🌙 Тёмная тема", value=st.session_state.dark_mode)
-lang_name = st.sidebar.selectbox("Язык анализа", list(LANG_OPTIONS.keys()))
-lang_cfg = LANG_OPTIONS[lang_name]
-cur_lang = lang_cfg["lang"]
+# ============================================================
+# Кэшируемые ресурсы
+#
+# Раньше всё это выполнялось на КАЖДЫЙ rerun Streamlit (то есть на каждое
+# нажатие любой кнопки): три обращения nltk.download, чтение и base64-кодирование
+# PNG, а главное — конструктор FeatureExtractor, который поднимает
+# pymorphy3.MorphAnalyzer (~1-2 с), а для белорусского ещё и пайплайн Stanza.
+# ============================================================
 
-if st.session_state.last_lang != lang_name:
-    st.session_state.profiles = None
-    st.session_state.results = None
-    st.session_state.input_text = ""
-    st.session_state.last_lang = lang_name
+@st.cache_resource(show_spinner=False)
+def ensure_nltk_data():
+    for package in ('punkt', 'punkt_tab', 'stopwords'):
+        nltk.download(package, quiet=True)
+    return True
 
-profile_path = lang_cfg["pickle"]
 
-DARK_EXTRA = ("""
-<style>
-.stApp { background-color: #0e1117; }
-.stApp > header {
-    background-color: #0e1117 !important;
-}
-[data-testid="stDecoration"] {
-    display: none !important;
-}
-section[data-testid="stSidebar"] {
-    background-color: #1e2028 !important;
-    color: #fafafa !important;
-}
-.stTextArea textarea, .stSelectbox > div, .stSelectbox [data-baseweb="select"] span {
-    background-color: #262730 !important; color: #fafafa !important;
-}
-.stTextArea label, .stSelectbox label, .stCheckbox label,
-section[data-testid="stSidebar"] label,
-[data-testid="stCheckbox"] label, [data-testid="stCheckbox"] span {
-    color: #fafafa !important;
-}
-.stMarkdown, .stSubheader, .stHeader, h1, h2, h3, h4,
-[data-testid="stHeading"] {
-    color: #fafafa !important;
-}
-.stSelectbox [data-baseweb="select"] svg { fill: #fafafa !important; }
-.stSelectbox [data-baseweb="popover"] { background-color: #1e2028 !important; }
-.stSelectbox [data-baseweb="popover"] li { color: #fafafa !important; }
-.stSelectbox [data-baseweb="popover"] li:hover { background-color: #363840 !important; }
-.stButton button {
-    background-color: #262730; color: #fafafa !important; border-color: #555;
-}
-.stButton button:hover { background-color: #363840; border-color: #777; }
-.stAlert { background-color: #262730; color: #fafafa; border-color: #555; }
-.stTextArea textarea::placeholder { color: #aaa !important; }
-[data-testid="stMainMenu"], [data-testid="stMainMenu"] * { color: #fafafa !important; }
-[data-testid="stMainMenu"] svg { fill: #fafafa !important; }
-[data-testid="stToolbar"] button, [data-testid="stToolbar"] button * { color: #fafafa !important; }
-[data-testid="stToolbar"] button svg { fill: #fafafa !important; }
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3,
-section[data-testid="stSidebar"] .st-emotion-cache-10trblm,
-section[data-testid="stSidebar"] .st-emotion-cache-1wmy9hl {
-    color: #fafafa !important;
-}
-[data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarCollapseButton"] * {
-    color: #FFD700 !important;
-    fill: #FFD700 !important;
-    stroke: #FFD700 !important;
-}
-[data-testid="stSidebarCollapsedButton"],
-[data-testid="stSidebarCollapsedButton"] *,
-[data-testid="stSidebarCollapsedButton"] svg,
-[data-testid="stSidebarCollapsedButton"] svg path {
-    color: #4A90D9 !important;
-    fill: #4A90D9 !important;
-    stroke: #4A90D9 !important;
-}
-p.subtitle { color: #bbb !important; }
-</style>
-""" if st.session_state.dark_mode else "")
+@st.cache_resource(show_spinner="Загружаем морфологический анализатор...")
+def get_extractor(language):
+    ensure_nltk_data()
+    return FeatureExtractor(language=language)
 
-PAPER_CSS = """
-<style>
-.stApp {
-    background-color: #F5F0E1;
-}
-.stTextArea textarea {
-    background-color: #FAF6ED !important;
-}
-section[data-testid="stSidebar"] {
-    background-color: #ECE6D3 !important;
-}
-h1 {
-    margin-top: -24px !important;
-    padding-top: 0 !important;
-}
-.retrain-section button {
-    background-color: #C4A882 !important;
-    color: #3A2A1A !important;
-    border-color: #A0845C !important;
-}
-.retrain-section button:hover {
-    background-color: #B89976 !important;
-    border-color: #8A6E4E !important;
-}
-div.analyze-section button {
-    background-color: #B8860B !important;
-    color: #FFFFFF !important;
-    border-color: #8B6508 !important;
-}
-div.analyze-section button:hover {
-    background-color: #A0760A !important;
-    border-color: #6B4F06 !important;
-}
-.stTextArea {
-    position: relative !important;
-}
-.stTextArea:focus-within::before {
-    content: '';
-    position: absolute;
-    top: -3px; left: -3px; right: -3px; bottom: -3px;
-    border-radius: 4px;
-    background: conic-gradient(#E91E63, #9C27B0, #2196F3, #00BCD4, #4CAF50, #FFEB3B, #FF9800, #E91E63);
-    z-index: -1;
-    animation: spin 4s linear infinite;
-    pointer-events: none;
-}
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-.stTextArea textarea:focus {
-    outline: none !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-}
-</style>
-"""
 
-st.markdown(PAPER_CSS + DARK_EXTRA, unsafe_allow_html=True)
-
-ghost_file = "ghost_transparent_light_ink.png" if st.session_state.dark_mode else "ghost_transparent_dark_ink.png"
-ghost_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", ghost_file)
-with open(ghost_path, "rb") as f:
-    ghost_b64 = base64.b64encode(f.read()).decode()
-
-st.markdown(f"""
-<div style="display:flex; align-items:center; gap:8px;">
-  <div>
-    <h1 style="margin:0 !important; padding:0 !important;">THinkING</h1>
-    <p class="subtitle" style="margin:0; font-size:14px; color:#666;">Думающие чернила</p>
-  </div>
-  <img src="data:image/png;base64,{ghost_b64}" style="height:200px; width:auto; margin-left:16px;">
-</div>
-""", unsafe_allow_html=True)
-
+@st.cache_data(show_spinner=False)
+def get_ghost_b64(dark_mode):
+    name = "ghost_transparent_light_ink.png" if dark_mode else "ghost_transparent_dark_ink.png"
+    with open(os.path.join(APP_DIR, "resources", name), "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
 
 def author_display(name):
     return config.AUTHOR_LABELS.get(name, name)
 
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("Профили авторов")
+def fig_to_png(fig):
+    """PNG-байты фигуры для st.download_button.
 
-if st.session_state.profiles is None:
-    profiles = load_profiles(profile_path)
-    if profiles is not None:
-        st.session_state.profiles = profiles
-        st.sidebar.success("Загружены профили:")
-        for name in profiles:
-            st.sidebar.markdown(f"- {author_display(name)}")
-        st.sidebar.markdown('<div class="retrain-section">', unsafe_allow_html=True)
-        if st.sidebar.button("🔄 Переобучить"):
-            st.session_state.profiles = None
-            st.session_state.results = None
-            st.session_state.input_text = ""
-            if os.path.exists(profile_path):
-                os.remove(profile_path)
-            st.rerun()
-        st.sidebar.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.sidebar.warning("Профили не найдены")
-        if st.sidebar.button("Обучить профили"):
-            with st.spinner("Обучение..."):
-                config.AUTHORS_LIST = lang_cfg["authors"]
-                authors_data = build_authors_profiles()
-                if not authors_data:
-                    st.error("Нет текстов для обучения. Добавьте файлы .txt в texts/")
-                else:
-                    new_profiles = {}
-                    for author_name, texts in authors_data.items():
-                        profile = AuthorProfile(author_name)
-                        profile.build_from_texts(texts, language=cur_lang)
-                        new_profiles[author_name] = profile
-                    save_profiles(new_profiles, profile_path)
-                    st.session_state.profiles = new_profiles
-                    st.rerun()
-else:
-    profiles = st.session_state.profiles
+    Раньше приложение вместо этого создавало на сервере output/<timestamp>/ и
+    писало туда PNG на каждый показ результата: пользователь этих файлов не
+    видел, а каталог рос с каждым анализом.
+    """
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+    return buf.getvalue()
+
+
+def show_chart(fig, download_name, key):
+    """Рисует график, даёт кнопку скачивания и освобождает фигуру."""
+    st.pyplot(fig)
+    st.download_button("⬇ Скачать PNG", fig_to_png(fig), file_name=download_name,
+                       mime="image/png", key=key)
+    plt.close(fig)
+
+
+def language_warning(text, language):
+    """Грубая проверка, что текст написан на выбранном языке.
+
+    Без неё можно было проанализировать русский текст белорусскими профилями
+    и получить уверенный, но бессмысленный процент.
+    """
+    lower = text.lower()
+    be_markers = lower.count('ў') + lower.count('і')
+    ru_markers = lower.count('и') + lower.count('ъ') + lower.count('ы') + lower.count('щ')
+
+    if language == Language.BELARUSIAN and be_markers == 0 and ru_markers > 0:
+        return ("Похоже, текст не на белорусском языке — специфичных букв «ў» и «і» "
+                "в нём нет. Результат может быть бессмысленным.")
+    if language == Language.RUSSIAN and be_markers > ru_markers:
+        return ("Похоже, текст на белорусском языке. Переключите язык анализа, "
+                "иначе результат будет бессмысленным.")
+    return None
+
+
+# ============================================================
+# Состояние сессии
+# ============================================================
+
+DEFAULT_STATE = {
+    "dark_mode": False,
+    "profiles": None,
+    "last_lang": None,
+    "results": None,
+    "input_text": "",
+    "analyze_requested": False,
+    "message": None,
+    "last_upload": None,
+}
+for key, value in DEFAULT_STATE.items():
+    st.session_state.setdefault(key, value)
+
+
+def reset_analysis():
+    st.session_state.results = None
+    st.session_state.message = None
+
+
+def clear_input():
+    st.session_state.input_text = ""
+    reset_analysis()
+
+
+def request_analysis():
+    st.session_state.analyze_requested = True
+
+
+def forget_profiles(profile_path):
+    st.session_state.profiles = None
+    st.session_state.input_text = ""
+    reset_analysis()
+    if os.path.exists(profile_path):
+        os.remove(profile_path)
+
+
+# ============================================================
+# Сайдбар: настройки и профили
+# ============================================================
+
+st.sidebar.header("Настройки")
+st.session_state.dark_mode = st.sidebar.toggle("🌙 Тёмная тема",
+                                               value=st.session_state.dark_mode)
+lang_name = st.sidebar.selectbox("Язык анализа", list(LANG_OPTIONS.keys()), key="lang_name")
+lang_cfg = LANG_OPTIONS[lang_name]
+cur_lang = lang_cfg["lang"]
+profile_path = lang_cfg["pickle"]
+
+if st.session_state.last_lang != lang_name:
+    st.session_state.profiles = None
+    st.session_state.input_text = ""
+    st.session_state.last_lang = lang_name
+    reset_analysis()
+
+# Графики следуют за темой приложения — иначе белое полотно matplotlib
+# било по глазам на тёмном фоне страницы.
+visualizer.use_theme(dark=st.session_state.dark_mode)
+
+
+def train_profiles():
+    """Обучает профили выбранного языка, показывая прогресс по авторам."""
+    authors_data = build_authors_profiles(authors=lang_cfg["authors"])
+    if not authors_data:
+        st.sidebar.error(f"Нет текстов для обучения. Добавьте .txt в "
+                         f"{config.BASE_PATH}<автор>/")
+        return None
+
+    extractor = get_extractor(cur_lang)
+    progress = st.sidebar.progress(0.0, "Обучение...")
+    new_profiles = {}
+
+    for i, (author_name, texts) in enumerate(authors_data.items()):
+        progress.progress(i / len(authors_data),
+                          f"Обучаем: {author_display(author_name)} ({len(texts)} текстов)")
+        profile = AuthorProfile(author_name)
+        # save_report=False: таблица показывается на странице (вкладка
+        # «Профили авторов»), плодить файлы на сервере незачем.
+        profile.build_from_texts(texts, language=cur_lang, save_report=False,
+                                 extractor=extractor)
+        new_profiles[author_name] = profile
+
+    progress.progress(1.0, "Готово")
+    save_profiles(new_profiles, profile_path)
+    return new_profiles
+
+
+def render_profiles_sidebar(profiles):
+    """Список обученных авторов и кнопка переобучения.
+
+    Раньше этот блок был написан дважды — в ветке «профили только что
+    загружены» и в ветке «профили уже в сессии», строка в строку.
+    """
     st.sidebar.success("Загружены профили:")
     for name in profiles:
         st.sidebar.markdown(f"- {author_display(name)}")
-    st.sidebar.markdown('<div class="retrain-section">', unsafe_allow_html=True)
-    if st.sidebar.button("🔄 Переобучить"):
-        st.session_state.profiles = None
-        st.session_state.results = None
-        st.session_state.input_text = ""
-        if os.path.exists(profile_path):
-            os.remove(profile_path)
+    if st.sidebar.button("🔄 Переобучить", use_container_width=True):
+        forget_profiles(profile_path)
         st.rerun()
-    st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("---")
-col_ratio = [1, 3] if st.session_state.results is not None else [3, 2]
-col_input, col_charts = st.columns(col_ratio, gap="medium")
+
+st.sidebar.divider()
+st.sidebar.subheader("Профили авторов")
+
+if st.session_state.profiles is None:
+    st.session_state.profiles = load_profiles(profile_path)
+
+if st.session_state.profiles is not None:
+    render_profiles_sidebar(st.session_state.profiles)
+else:
+    st.sidebar.warning("Профили не найдены")
+    if st.sidebar.button("Обучить профили", use_container_width=True):
+        st.session_state.profiles = train_profiles()
+        if st.session_state.profiles:
+            st.rerun()
+
+
+# ============================================================
+# Анализ (выполняется до отрисовки, чтобы разметка знала о результате)
+# ============================================================
+
+def run_analysis():
+    text = st.session_state.input_text
+    profiles = st.session_state.profiles
+
+    if profiles is None:
+        st.session_state.message = ("error", "Сначала обучите профили авторов.")
+        return
+    if not text.strip():
+        st.session_state.message = ("warning", "Введите текст для анализа.")
+        return
+    if len(text.strip()) < config.MIN_TEXT_LENGTH:
+        st.session_state.message = ("warning", (
+            f"Текст слишком короткий (минимум {config.MIN_TEXT_LENGTH} символов, "
+            f"сейчас {len(text.strip())})."))
+        return
+
+    with st.spinner("Анализ..."):
+        extractor = get_extractor(cur_lang)
+        try:
+            anon_features = extractor.extract(text)
+        except Exception as e:
+            st.session_state.message = ("error", f"Не удалось разобрать текст: {e}")
+            return
+
+        best_author, results, similarity_details = identify(profiles, anon_features)
+
+    st.session_state.message = None
+    st.session_state.results = {
+        "best_author": best_author,
+        "best_score": results[best_author],
+        "results": results,
+        "anon_features": anon_features,
+        "similarity_details": similarity_details,
+        "degraded": extractor.degraded_reason,
+        "lang_warning": language_warning(text, cur_lang),
+    }
+
+
+if st.session_state.analyze_requested:
+    st.session_state.analyze_requested = False
+    run_analysis()
+
+
+# ============================================================
+# Оформление
+#
+# Тёмную тему приходится делать через CSS: Streamlit не умеет переключать
+# [theme] из config.toml во время работы приложения. Но палитра теперь задана
+# один раз через CSS-переменные, а правила опираются на стабильные
+# data-testid-селекторы. Раньше здесь было ~120 строк !important-ов, включая
+# хэш-классы вида .st-emotion-cache-10trblm — они генерируются сборкой
+# Streamlit и меняются от версии к версии, так что тёмная тема ломалась бы на
+# первом же обновлении пакета.
+# ============================================================
+
+LIGHT_VARS = """
+    --paper: #F5F0E1;
+    --paper-raised: #FAF6ED;
+    --sidebar: #ECE6D3;
+    --ink: #2A231C;
+    --ink-soft: #6B6153;
+    --border: #DCD2B8;
+    --accent: #B8860B;
+    --accent-ink: #FFFFFF;
+    --accent-hover: #A0760A;
+    --retrain: #C4A882;
+    --retrain-ink: #3A2A1A;
+"""
+
+DARK_VARS = """
+    --paper: #0E1117;
+    --paper-raised: #1A1D24;
+    --sidebar: #1E2028;
+    --ink: #E8E3D8;
+    --ink-soft: #A2998A;
+    --border: #3A3F4B;
+    --accent: #C79A2B;
+    --accent-ink: #14100A;
+    --accent-hover: #D8AB3C;
+    --retrain: #3A3F4B;
+    --retrain-ink: #E8E3D8;
+"""
+
+APP_CSS = f"""
+<style>
+.stApp {{ {DARK_VARS if st.session_state.dark_mode else LIGHT_VARS} }}
+
+.stApp, [data-testid="stHeader"] {{ background-color: var(--paper); }}
+.stApp {{ color: var(--ink); }}
+[data-testid="stSidebar"] {{ background-color: var(--sidebar); }}
+[data-testid="stDecoration"] {{ display: none; }}
+
+.stApp h1, .stApp h2, .stApp h3, .stApp h4,
+[data-testid="stMarkdownContainer"], .stApp label, .stApp p, .stApp li {{
+    color: var(--ink);
+}}
+.subtitle, .stCaption, [data-testid="stCaptionContainer"] {{ color: var(--ink-soft); }}
+h1 {{ margin-top: -24px; padding-top: 0; }}
+
+.stTextArea textarea,
+[data-baseweb="select"] > div,
+[data-testid="stFileUploaderDropzone"] {{
+    background-color: var(--paper-raised);
+    color: var(--ink);
+    border-color: var(--border);
+}}
+.stTextArea textarea::placeholder {{ color: var(--ink-soft); }}
+
+.stButton button {{
+    background-color: var(--paper-raised);
+    color: var(--ink);
+    border-color: var(--border);
+}}
+.stButton button:hover {{ border-color: var(--accent); color: var(--accent); }}
+
+.stButton button[kind="primary"],
+[data-testid="stBaseButton-primary"],
+[data-testid="stDownloadButton"] button {{
+    background-color: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+}}
+.stButton button[kind="primary"]:hover,
+[data-testid="stBaseButton-primary"]:hover,
+[data-testid="stDownloadButton"] button:hover {{
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--accent-ink);
+}}
+
+/* Радужная рамка вокруг поля ввода в фокусе — своего аналога у Streamlit нет */
+.stTextArea {{ position: relative; }}
+.stTextArea:focus-within::before {{
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 4px;
+    background: conic-gradient(#E91E63, #9C27B0, #2196F3, #00BCD4,
+                               #4CAF50, #FFEB3B, #FF9800, #E91E63);
+    z-index: -1;
+    animation: spin 4s linear infinite;
+    pointer-events: none;
+}}
+@keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+.stTextArea textarea:focus {{
+    outline: none;
+    border-color: transparent;
+    box-shadow: none;
+}}
+
+.version-badge {{
+    position: fixed; bottom: 8px; right: 12px;
+    font-size: 11px; color: var(--ink-soft); opacity: 0.6;
+}}
+</style>
+"""
+st.markdown(APP_CSS, unsafe_allow_html=True)
+
+st.markdown(f"""
+<div style="display:flex; align-items:center; gap:8px;">
+  <div>
+    <h1 style="margin:0; padding:0;">THinkING</h1>
+    <p class="subtitle" style="margin:0; font-size:14px;">Думающие чернила</p>
+  </div>
+  <img src="data:image/png;base64,{get_ghost_b64(st.session_state.dark_mode)}"
+       alt="THinkING" style="height:200px; width:auto; margin-left:16px;">
+</div>
+""", unsafe_allow_html=True)
+
+st.divider()
+
+
+# ============================================================
+# Основная разметка
+# ============================================================
+
+results_state = st.session_state.results
+col_input, col_charts = st.columns([1, 3] if results_state else [3, 2], gap="medium")
 
 with col_input:
-    if st.session_state.results is None:
-        user_text = st.text_area("Введите текст для анализа:", height=250,
-                                 placeholder="Вставьте текст на русском или белорусском языке...",
-                                 value=st.session_state.input_text)
-        st.session_state.input_text = user_text
-        st.caption(f"Длина текста: {len(user_text)} символов")
+    if results_state is None:
+        uploaded = st.file_uploader("Или загрузите .txt файл", type=["txt"],
+                                    label_visibility="collapsed")
+        # Читаем каждый файл один раз, иначе он бы затирал правки пользователя
+        # на каждом rerun.
+        if uploaded is not None and uploaded.name != st.session_state.last_upload:
+            decoded = io_utils.decode_text(uploaded.getvalue(), uploaded.name)
+            if decoded is None:
+                st.error(f"Не удалось определить кодировку файла {uploaded.name}")
+            else:
+                st.session_state.last_upload = uploaded.name
+                st.session_state.input_text = decoded
+                st.rerun()
 
-        st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
+        st.text_area("Введите текст для анализа:", height=250, key="input_text",
+                     placeholder="Вставьте текст на русском или белорусском языке...")
+
+        text_len = len(st.session_state.input_text)
+        st.caption(f"Длина текста: {text_len} символов "
+                   f"(минимум {config.MIN_TEXT_LENGTH})")
+
         col_a, col_b = st.columns(2, gap="small")
         with col_a:
-            if st.button("Анализировать"):
-                if st.session_state.profiles is None:
-                    st.error("Сначала обучите профили авторов.")
-                elif not user_text.strip():
-                    st.warning("Введите текст для анализа.")
-                elif len(user_text.strip()) < 400:
-                    st.warning(f"Текст слишком короткий (минимум 400 символов, сейчас {len(user_text.strip())}).")
-                else:
-                    profiles = st.session_state.profiles
-                    with st.spinner("Анализ..."):
-                        extractor = FeatureExtractor(language=cur_lang)
-                        anon_features = extractor.extract(user_text)
-
-                        results = {}
-                        similarity_details = {}
-                        for author_name, profile in profiles.items():
-                            sim, details = profile.similarity_with_details(anon_features)
-                            results[author_name] = sim
-                            similarity_details[author_name] = details
-
-                        best_author = max(results, key=results.get)
-                        best_score = results[best_author]
-
-                    st.session_state.results = {
-                        "best_author": best_author,
-                        "best_score": best_score,
-                        "results": results,
-                        "anon_features": anon_features,
-                        "similarity_details": similarity_details,
-                        "profiles": profiles,
-                    }
-                    st.rerun()
+            st.button("Анализировать", on_click=request_analysis, type="primary",
+                      use_container_width=True)
         with col_b:
-            if user_text.strip() and st.button("✕ Очистить"):
-                st.session_state.input_text = ""
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="analyze-section">', unsafe_allow_html=True)
-        if st.button("🔄 Новый анализ"):
-            st.session_state.results = None
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.button("✕ Очистить", on_click=clear_input,
+                      disabled=not st.session_state.input_text.strip(),
+                      use_container_width=True)
 
-    if st.session_state.results:
-        r = st.session_state.results
-        score_pct = r["best_score"] * 100
-        threshold = 0.6
-        if r["best_score"] >= threshold:
-            if r["best_score"] >= 0.7:
-                color = "green"
-                label = "Высокая уверенность"
-            else:
-                color = "orange"
-                label = "Средняя уверенность"
-            st.markdown(
-                f"<h3 style='color:{color};'>{author_display(r['best_author'])}</h3>",
-                unsafe_allow_html=True
-            )
-            st.markdown(f"**{score_pct:.1f}%** — {label}")
+        if st.session_state.message:
+            level, text = st.session_state.message
+            getattr(st, level)(text)
+    else:
+        st.button("🔄 Новый анализ", on_click=reset_analysis, use_container_width=True)
+
+        r = results_state
+        if r["degraded"]:
+            st.warning(f"Морфология работает в упрощённом режиме: {r['degraded']}")
+        if r["lang_warning"]:
+            st.warning(r["lang_warning"])
+
+        score = r["best_score"]
+        if score >= config.CONFIDENCE_THRESHOLD:
+            high = score >= config.HIGH_CONFIDENCE_THRESHOLD
+            color = "green" if high else "orange"
+            label = "Высокая уверенность" if high else "Средняя уверенность"
+            st.markdown(f"<h3 style='color:{color};'>{author_display(r['best_author'])}</h3>",
+                        unsafe_allow_html=True)
+            st.markdown(f"**{score:.1%}** — {label}")
         else:
             st.markdown("<h3>Автор не определён</h3>", unsafe_allow_html=True)
-            st.markdown(f"Ни один автор не достиг порога уверенности ({threshold * 100:.0f}%). Лучший результат: **{author_display(r['best_author'])}** — {score_pct:.1f}%")
-        st.markdown("---")
+            st.markdown(
+                f"Ни один автор не достиг порога уверенности "
+                f"({config.CONFIDENCE_THRESHOLD:.0%}). Лучший результат: "
+                f"**{author_display(r['best_author'])}** — {score:.1%}")
+
+        st.divider()
         st.markdown("**Все авторы:**")
-        for author, score in sorted(r["results"].items(), key=lambda x: -x[1]):
-            st.markdown(f"{author_display(author)}: {score:.1%}")
+        for author, author_score in sorted(r["results"].items(), key=lambda x: -x[1]):
+            st.markdown(f"{author_display(author)}: {author_score:.1%}")
 
 with col_charts:
-    if st.session_state.results and st.session_state.profiles:
-        r = st.session_state.results
-        profiles = r["profiles"]
+    if results_state and st.session_state.profiles:
+        r = results_state
+        profiles = st.session_state.profiles
         anon_features = r["anon_features"]
-        results = r["results"]
         best_author = r["best_author"]
-        best_score = r["best_score"]
-        similarity_details = r["similarity_details"]
-
         feature_names = config.FEATURE_LIST_SHORT
-        author_color = config.AUTHOR_COLORS.get(best_author, config.AUTHOR_COLORS['default'])
 
         all_authors_ranges = {
             name: [(f.a, f.b, f.c) for f in profile.features]
             for name, profile in profiles.items()
         }
 
-        ts = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        out_dir = os.path.join("output", ts, "")
-        os.makedirs(out_dir, exist_ok=True)
+        tab_summary, tab_features, tab_all, tab_profiles = st.tabs(
+            ["Схожесть", "Вклад признаков", "Все авторы", "Профили авторов"])
 
-        chart_col1, chart_col2 = st.columns(2, gap="medium")
+        with tab_summary:
+            chart_col1, chart_col2 = st.columns(2, gap="medium")
+            with chart_col1:
+                show_chart(
+                    StyleRose.plot_authors_comparison(
+                        r["results"], title="Схожесть с авторами", figsize=(9, 6.5)),
+                    "authors_comparison.png", "dl_comparison")
+            with chart_col2:
+                try:
+                    show_chart(
+                        StyleRose.plot_fuzzy_rose(
+                            all_authors_ranges, anon_features, feature_names,
+                            authors_to_plot=[best_author],
+                            title=f"{author_display(best_author)} vs аноним "
+                                  f"({r['best_score']:.1%})",
+                            figsize=(7, 7)),
+                        f"{best_author}_vs_anon.png", "dl_rose_best")
+                except Exception as e:
+                    st.warning(f"Не удалось построить итоговую розу: {e}")
 
-        with chart_col1:
-            fig1 = StyleRose.plot_authors_comparison(results, title="Схожесть с авторами", figsize=(9, 6.5))
-            fig1.savefig(os.path.join(out_dir, "authors_comparison.png"), dpi=150, bbox_inches='tight')
-            st.pyplot(fig1)
-            plt.close(fig1)
-
-        with chart_col2:
+        with tab_features:
+            # similarity_details считались и раньше, но никуда не выводились —
+            # а это самая содержательная часть анализа: видно, какие именно
+            # признаки дали совпадение, а какие ему противоречат.
+            st.caption("Какие признаки дали совпадение с автором, а какие — нет.")
+            sims, weights, contribs = r["similarity_details"][best_author]
             try:
-                fig2 = StyleRose.plot_fuzzy_rose(
-                    all_authors_ranges, anon_features, feature_names,
-                    authors_to_plot=[best_author],
-                    author_colors={best_author: author_color},
-                    title=f"{author_display(best_author)} vs аноним ({best_score:.1%})",
-                    figsize=(7, 7),
-                )
-                fig2.savefig(os.path.join(out_dir, f"{best_author}_vs_anon.png"), dpi=150, bbox_inches='tight')
-                st.pyplot(fig2)
-                plt.close(fig2)
+                show_chart(
+                    StyleRose.plot_feature_importance(
+                        best_author, sims, weights, contribs, feature_names,
+                        title=f"{author_display(best_author)} "
+                              f"(сходство {r['best_score']:.1%})",
+                        figsize=(14, 5.5)),
+                    f"{best_author}_importance.png", "dl_importance")
             except Exception as e:
-                st.warning(f"Не удалось построить итоговую розу: {e}")
+                st.warning(f"Не удалось построить график важности признаков: {e}")
 
-VERSION = "0.1.0"
-st.markdown(f"<div style='position:fixed;bottom:8px;right:12px;font-size:11px;color:#888;opacity:0.6;'>v{VERSION}</div>", unsafe_allow_html=True)
+        with tab_all:
+            try:
+                show_chart(
+                    StyleRose.plot_fuzzy_rose(
+                        all_authors_ranges, anon_features, feature_names,
+                        title="Все авторы vs аноним", figsize=(8, 8)),
+                    "all_authors_rose.png", "dl_rose_all")
+            except Exception as e:
+                st.warning(f"Не удалось построить общую розу: {e}")
+
+            try:
+                raw = {name: [f.b for f in profile.features]
+                       for name, profile in profiles.items()}
+                raw['Аноним'] = list(anon_features)
+                normalized = {}
+                for i in range(len(feature_names)):
+                    col = [v[i] for v in raw.values()]
+                    lo, hi = min(col), max(col)
+                    for name, values in raw.items():
+                        normalized.setdefault(name, []).append(
+                            (values[i] - lo) / (hi - lo) if hi > lo else 0.5)
+                show_chart(
+                    StyleRose.plot_feature_heatmap(normalized, feature_names,
+                                                   title="Тепловая карта признаков"),
+                    "heatmap.png", "dl_heatmap")
+            except Exception as e:
+                st.warning(f"Не удалось построить тепловую карту: {e}")
+
+        with tab_profiles:
+            st.caption("Значения признаков по каждому обучающему тексту автора.")
+            for name, profile in profiles.items():
+                with st.expander(author_display(name)):
+                    html = profile.get_summary_html()
+                    if html is None:
+                        st.info("Таблица недоступна: профиль обучен старой версией "
+                                "кода. Нажмите «Переобучить» в боковой панели.")
+                    else:
+                        st.iframe(html, height=420)
+
+st.markdown(f"<div class='version-badge'>v{config.VERSION}</div>",
+            unsafe_allow_html=True)
