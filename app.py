@@ -490,8 +490,8 @@ with col_charts:
             for name, profile in profiles.items()
         }
 
-        tab_summary, tab_features, tab_all, tab_profiles = st.tabs(
-            ["Схожесть", "Вклад признаков", "Все авторы", "Профили авторов"])
+        tab_summary, tab_features, tab_profiles = st.tabs(
+            ["Схожесть", "Вклад признаков", "Профили авторов"])
 
         with tab_summary:
             chart_col1, chart_col2 = st.columns(2, gap="medium")
@@ -529,21 +529,6 @@ with col_charts:
                     f"{best_author}_importance.png", "dl_importance")
             except Exception as e:
                 st.warning(f"Не удалось построить график важности признаков: {e}")
-
-        with tab_all:
-            # Роза рисуется в средней колонке: st.pyplot растягивает фигуру на
-            # всю ширину контейнера, поэтому уменьшать figsize без ограничения
-            # ширины бесполезно — меняется только разрешение, не размер.
-            _, rose_col, _ = st.columns([1, 2, 1])
-            with rose_col:
-                try:
-                    show_chart(
-                        StyleRose.plot_fuzzy_rose(
-                            all_authors_ranges, anon_features, feature_names,
-                            title="Все авторы vs аноним", figsize=(5.5, 5.5)),
-                        "all_authors_rose.png", "dl_rose_all")
-                except Exception as e:
-                    st.warning(f"Не удалось построить общую розу: {e}")
 
         with tab_profiles:
             st.caption("Значения признаков по каждому обучающему тексту автора.")
