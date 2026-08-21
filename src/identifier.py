@@ -1,47 +1,45 @@
-from src.feature_extractor import FeatureExtractor, Language
-from src.profile_builder import AuthorProfile
+# identifier.py
+"""Сравнение вектора признаков со всеми обученными профилями.
+
+Раньше этот модуль содержал класс FuzzyDetective, который нигде не
+использовался, а сам цикл "пройтись по профилям и найти лучший" был написан
+трижды — в main.py, в app.py и здесь. Теперь он один.
+"""
+import logging
+
+from src import config
+
+logger = logging.getLogger(__name__)
 
 
-class FuzzyDetective:
-    """Нечёткий детектив - главный класс программы"""
+def identify(profiles, features):
+    """Сравнивает признаки текста со всеми профилями.
 
-    def __init__(self, language=Language.RUSSIAN):
-        self.authors = {}  # словарь {имя: AuthorProfile}
-        self.language = language
+    Args:
+        profiles: {имя автора: AuthorProfile}
+        features: вектор признаков анализируемого текста
 
-    def add_author(self, name, texts):
-        """Добавляет автора с его текстами для обучения"""
-        profile = AuthorProfile(name)
-        profile.build_from_texts(texts, language=self.language)
-        self.authors[name] = profile
+    Returns:
+        tuple: (best_author, results, similarity_details)
+        results — {имя: итоговое сходство}
+        similarity_details — {имя: (similarities, weights, contributions)},
+        тот же формат, что и AuthorProfile.similarity_with_details(),
+        удобно передавать напрямую в StyleRose.plot_feature_importance.
+        best_author = None, если профилей нет.
+    """
+    results = {}
+    similarity_details = {}
 
-    def identify(self, anonymous_text, threshold=0.5):
-        """
-        Определяет автора анонимного текста
+    for name, profile in profiles.items():
+        similarity, details = profile.similarity_with_details(features)
+        results[name] = similarity
+        similarity_details[name] = details
+        logger.debug("  Сходство с %s: %.3f", name, similarity)
 
-        Returns:
-            tuple: (best_author, results, similarity_details)
-            results — {имя: итоговое сходство}
-            similarity_details — {имя: (similarities, weights, contributions)},
-            тот же формат, что и AuthorProfile.similarity_with_details(),
-            удобно передавать напрямую в StyleRose.plot_membership_rose /
-            StyleRose.plot_feature_importance.
-        """
-        extractor = FeatureExtractor(language=self.language)
-        features = extractor.extract(anonymous_text)
+    best_author = max(results, key=results.get) if results else None
+    return best_author, results, similarity_details
 
-        results = {}
-        similarity_details = {}
-        for name, profile in self.authors.items():
-            sim, details = profile.similarity_with_details(features)
-            results[name] = sim
-            similarity_details[name] = details
 
-        # Находим лучшего
-        best_author = max(results, key=results.get)
-        best_score = results[best_author]
-
-        if best_score < threshold:
-            return "Автор не определён", results, similarity_details
-        else:
-            return best_author, results, similarity_details
+def is_confident(score, threshold=None):
+    """Достаточна ли уверенность, чтобы называть автора."""
+    return score >= (config.CONFIDENCE_THRESHOLD if threshold is None else threshold)

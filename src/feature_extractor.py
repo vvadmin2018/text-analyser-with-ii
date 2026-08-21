@@ -1,11 +1,17 @@
 # feature_extractor.py
-import nltk
-from nltk.tokenize import sent_tokenize, word_tokenize
-import string
-import numpy as np
+"""Извлечение стилевых признаков текста (17 признаков, группы А/Б/В)."""
+import logging
 import re
+import string
 from collections import Counter
+
+import nltk
+import numpy as np
+from nltk.tokenize import sent_tokenize, word_tokenize
+
 from src import config
+
+logger = logging.getLogger(__name__)
 
 # Определяем доступные морфологические анализаторы
 try:
@@ -14,7 +20,7 @@ try:
     PY_MORPHY_AVAILABLE = True
 except ImportError:
     PY_MORPHY_AVAILABLE = False
-    print("⚠️ pymorphy2/pymorphy3 не установлен. Морфологический анализ будет ограничен.")
+    logger.warning("⚠️ pymorphy3 не установлен. Морфологический анализ будет ограничен.")
 
 # Stanza для белорусского языка
 try:
@@ -23,7 +29,6 @@ try:
     STANZA_AVAILABLE = True
 except ImportError:
     STANZA_AVAILABLE = False
-    print("⚠️ stanza не установлен. Белорусский язык не поддерживается.")
 
 
 class Language:
@@ -43,90 +48,107 @@ class FeatureExtractor:
         - language: 'ru' для русского, 'be' для белорусского
         """
         self.language = language
+        self.stanza_nlp = None
+        # Заполняется, если полноценный морфоанализ для выбранного языка
+        # недоступен и признаки считаются огрублённым способом. Веб-приложение
+        # показывает это пользователю — молча выдавать уверенный процент,
+        # посчитанный по суффиксной эвристике, нельзя.
+        self.degraded_reason = None
 
-        print("DEBUG: " + self.language)
+        logger.debug("FeatureExtractor: язык %s", self.language)
 
-        # Загружаем стоп-слова в зависимости от языка
         if language == Language.RUSSIAN:
             self.stopwords = set(nltk.corpus.stopwords.words('russian'))
-        else:
-            # Для белорусского используем базовый набор стоп-слов
-            self.stopwords = self._get_belarusian_stopwords()
-
-        # Инициализируем морфологический анализатор
-        if PY_MORPHY_AVAILABLE:
-            print("DEBUG: Используем pymorphy2")
-            self.morph = pymorphy2.MorphAnalyzer()
-        else:
-            self.morph = None
-
-        # Инициализируем Stanza для белорусского языка
-        self.stanza_nlp = None
-        if language == Language.BELARUSIAN and STANZA_AVAILABLE:
-            try:
-                # Загружаем модель для белорусского языка
-                self.stanza_nlp = stanza.Pipeline(
-                    'be',
-                    processors='tokenize,pos,lemma',
-                    use_gpu=False,
-                    verbose=False
-                )
-                print("✅ Stanza для белорусского языка загружена")
-            except Exception as e:
-                print(f"⚠️ Не удалось загрузить Stanza для белорусского: {e}")
-
-        # Словари для союзов и предлогов
-        if language == Language.RUSSIAN:
             self._init_russian_dictionaries()
         else:
+            self.stopwords = self._get_belarusian_stopwords()
             self._init_belarusian_dictionaries()
+
+        # Морфологический анализатор для русского
+        self.morph = pymorphy2.MorphAnalyzer() if PY_MORPHY_AVAILABLE else None
+        if language == Language.RUSSIAN and self.morph is None:
+            self.degraded_reason = (
+                "не установлен pymorphy3 — части речи определяются по окончаниям слов"
+            )
+
+        if language == Language.BELARUSIAN:
+            self._init_stanza()
+
+    def _init_stanza(self):
+        """Поднимает Stanza-пайплайн для белорусского.
+
+        Если модель недоступна, признаки считаются суффиксной эвристикой и
+        поднимается degraded_reason. Раньше выбор анализатора шёл по флагу
+        STANZA_AVAILABLE (импортируется ли модуль), а _analyze_with_stanza при
+        незагруженном пайплайне возвращал сплошные нули — Б2-Б5 и В4-В5
+        обнулялись, и пользователю показывался уверенный процент по мусору.
+        """
+        if not STANZA_AVAILABLE:
+            self.degraded_reason = (
+                "не установлен пакет stanza — морфология белорусского текста "
+                "определяется по окончаниям слов, результат приблизительный"
+            )
+            return
+
+        try:
+            self.stanza_nlp = stanza.Pipeline(
+                'be',
+                processors='tokenize,pos,lemma',
+                use_gpu=False,
+                verbose=False
+            )
+            logger.info("✅ Stanza для белорусского языка загружена")
+        except Exception as e:
+            logger.warning("⚠️ Не удалось загрузить Stanza для белорусского: %s", e)
+            self.degraded_reason = (
+                f"не удалось загрузить модель Stanza для белорусского ({e}) — "
+                f"морфология определяется по окончаниям слов, результат приблизительный"
+            )
 
     def _init_russian_dictionaries(self):
         """Инициализация словарей для русского языка"""
-        self.conjunctions = set([
+        self.conjunctions = {
             'и', 'а', 'но', 'да', 'или', 'либо', 'что', 'чтобы', 'если',
             'когда', 'потому', 'так', 'как', 'чем', 'однако', 'зато', 'тоже',
-            'также', 'причем', 'притом', 'потому', 'поэтому', 'зачем', 'отчего'
-        ])
+            'также', 'причем', 'притом', 'поэтому', 'зачем', 'отчего'
+        }
 
-        self.prepositions = set([
+        self.prepositions = {
             'в', 'во', 'на', 'с', 'со', 'к', 'ко', 'у', 'о', 'об', 'от',
             'ото', 'из', 'изо', 'за', 'для', 'без', 'безо', 'до', 'при',
             'про', 'через', 'сквозь', 'между', 'среди', 'над', 'под', 'перед',
             'возле', 'около', 'вокруг', 'мимо', 'после', 'ради', 'вроде'
-        ])
+        }
 
     def _init_belarusian_dictionaries(self):
         """Инициализация словарей для белорусского языка"""
-        self.conjunctions = set([
+        self.conjunctions = {
             'і', 'а', 'але', 'ды', 'ці', 'альбо', 'што', 'каб', 'калі',
             'таму', 'так', 'як', 'чым', 'аднак', 'затое', 'тожа', 'таксама'
-        ])
+        }
 
-        self.prepositions = set([
-            'у', 'ў', 'на', 'з', 'са', 'да', 'к', 'а', 'аб', 'ад',
-            'ада', 'ад', 'з', 'за', 'для', 'без', 'бяз', 'да', 'пры',
-            'пра', 'праз', 'скрозь', 'паміж', 'сярод', 'над', 'пад', 'перад'
-        ])
+        self.prepositions = {
+            'у', 'ў', 'на', 'з', 'са', 'да', 'к', 'а', 'аб', 'ад', 'ада',
+            'за', 'для', 'без', 'бяз', 'пры', 'пра', 'праз', 'скрозь',
+            'паміж', 'сярод', 'над', 'пад', 'перад'
+        }
 
     def _get_belarusian_stopwords(self):
         """Возвращает базовый набор стоп-слов для белорусского языка"""
-        return set([
+        return {
             'і', 'а', 'не', 'што', 'на', 'ў', 'з', 'да', 'па', 'за',
             'як', 'так', 'каб', 'яго', 'яна', 'яно', 'яны', 'мы', 'вы',
-            'яны', 'гэта', 'гэты', 'гэтая', 'гэтае', 'гэтыя'
-        ])
+            'гэта', 'гэты', 'гэтая', 'гэтае', 'гэтыя'
+        }
 
     def _mattr(self, words, window_size=None):
         """
         MATTR — Moving-Average Type-Token Ratio (Covington & McFall, 2010).
 
-        Раньше здесь считался RTTR = |уникальных слов| / sqrt(N), а он
-        сильно "плывёт" вместе с длиной текста: для короткого анонимного
-        отрывка в полсотни слов и для главы автора в пару тысяч слов
+        Обычный TTR/RTTR сильно "плывёт" вместе с длиной текста: для короткого
+        анонимного отрывка в полсотни слов и для главы автора в пару тысяч слов
         значения получаются совершенно разного порядка, даже если стиль
-        идентичен. Именно это чаще всего утаскивало признак "TTR" далеко
-        за пределы диапазона автора (см. разбор в чате).
+        идентичен.
 
         MATTR устойчив к длине: считаем TTR не по всему тексту сразу, а
         как среднее TTR по скользящим окнам ФИКСИРОВАННОГО размера — тогда
@@ -142,8 +164,7 @@ class FeatureExtractor:
         if n <= w:
             # Текст короче окна (бывает у совсем коротких анонимных
             # отрывков) — окно ужимать некуда, считаем обычный TTR по
-            # всему, что есть. Это единственный разумный вариант для
-            # таких случаев, а не ошибка.
+            # всему, что есть.
             return len(set(words)) / n
 
         counts = Counter(words[:w])
@@ -160,52 +181,40 @@ class FeatureExtractor:
         return float(np.mean(ttrs))
 
     def _analyze_with_pymorphy(self, words_original):
-        """Анализ текста с помощью pymorphy2 (для русского языка)"""
+        """Анализ текста с помощью pymorphy (для русского языка)"""
         if self.morph is None:
             return self._analyze_fallback(words_original)
 
-        pos_counts = {
-            'NOUN': 0, 'ADJF': 0, 'ADJS': 0, 'VERB': 0, 'INFN': 0,
-            'PRTS': 0, 'PRTF': 0, 'GRND': 0, 'NUMR': 0, 'ADVB': 0,
-            'NPRO': 0, 'PRED': 0, 'PREP': 0, 'CONJ': 0, 'PRCL': 0, 'INTJ': 0,
-        }
-
+        MAIN_POS = {'NOUN', 'VERB', 'INFN', 'GRND', 'PRTF', 'ADJF'}
+        pos_counts = Counter()
         words_main = []
 
         for word in words_original:
             try:
-                parsed = self.morph.parse(word)[0]
-                pos = parsed.tag.POS
-                if config.LEVEL_LOG == "DEBUG":
-                    print(f"DEBUG: {pos} для {word}")
-                if pos and pos in pos_counts:
-                    pos_counts[pos] += 1
-                if pos in ['NOUN', 'VERB', 'INFN', 'GRND', 'PRTF', 'ADJF']:
-                    words_main.append(word)
+                pos = self.morph.parse(word)[0].tag.POS
             except Exception:
                 continue
+            if pos:
+                pos_counts[pos] += 1
+            if pos in MAIN_POS:
+                words_main.append(word)
 
         total = len(words_original)
 
-        # Подсчёт частей речи
         nouns = pos_counts['NOUN'] + pos_counts['NUMR']
         verbs = (pos_counts['VERB'] + pos_counts['INFN'] + pos_counts['GRND'] +
                  pos_counts['PRTS'] + pos_counts['PRTF'])
         adjs = pos_counts['ADJF'] + pos_counts['ADJS']
 
-        # Союзы и предлоги
-        conj_total = pos_counts['CONJ']
-        prep_total = pos_counts['PREP']
-
-        # Дополнительно проверяем по словарям
-        conj_by_dict = sum(1 for w in words_original if w.lower() in self.conjunctions)
-        prep_by_dict = sum(1 for w in words_original if w.lower() in self.prepositions)
-
-        conj_total = max(conj_total, conj_by_dict)
-        prep_total = max(prep_total, prep_by_dict)
+        # Морфологию дополняем словарями: pymorphy часто размечает частотные
+        # служебные слова как частицы/наречия, поэтому берём большую из двух оценок.
+        conj_total = max(pos_counts['CONJ'],
+                         sum(1 for w in words_original if w.lower() in self.conjunctions))
+        prep_total = max(pos_counts['PREP'],
+                         sum(1 for w in words_original if w.lower() in self.prepositions))
 
         # Если pymorphy не распознал ни одного слова — используем fallback
-        if total > 0 and nouns == 0 and verbs == 0 and adjs == 0 and len(words_main) == 0:
+        if total > 0 and nouns == 0 and verbs == 0 and adjs == 0 and not words_main:
             return self._analyze_fallback(words_original)
 
         return nouns, verbs, adjs, conj_total, prep_total, total, words_main
@@ -219,9 +228,14 @@ class FeatureExtractor:
         conj_total = sum(1 for w in words_original if w.lower() in self.conjunctions)
         prep_total = sum(1 for w in words_original if w.lower() in self.prepositions)
 
-        nouns = 0
-        verbs = 0
-        adjs = 0
+        NOUN_ENDINGS = ('а', 'я', 'о', 'е', 'ы', 'и', 'у', 'ю', 'ь', 'й',
+                        'ам', 'ах', 'ей', 'ям', 'ях', 'ой')
+        VERB_ENDINGS = ('ть', 'ти', 'чь', 'ться', 'тся', 'л', 'ла', 'ли', 'ло',
+                        'ет', 'ют', 'ит', 'ат', 'ят')
+        ADJ_ENDINGS = ('ый', 'ий', 'ой', 'ая', 'яя', 'ое', 'ее', 'ые', 'ие',
+                       'ым', 'им', 'ых', 'их')
+
+        nouns = verbs = adjs = 0
         words_main = []
 
         for w in words_original:
@@ -229,46 +243,29 @@ class FeatureExtractor:
             if len(wl) <= 2 or wl in self.stopwords:
                 continue
 
-            # Существительные: частые окончания
-            if any(wl.endswith(s) for s in
-                   ('а', 'я', 'о', 'е', 'ы', 'и', 'у', 'ю', 'ь', 'й', 'ам', 'ах', 'ей', 'ям', 'ях', 'ой')):
+            if wl.endswith(NOUN_ENDINGS):
                 nouns += 1
-                words_main.append(w)
-            # Глаголы: окончания
-            elif any(wl.endswith(s) for s in
-                     ('ть', 'ти', 'чь', 'ться', 'тся', 'л', 'ла', 'ли', 'ло', 'ет', 'ют', 'ит', 'ат', 'ят')):
+            elif wl.endswith(VERB_ENDINGS):
                 verbs += 1
-                words_main.append(w)
-            # Прилагательные: окончания
-            elif any(wl.endswith(s) for s in
-                     ('ый', 'ий', 'ой', 'ая', 'яя', 'ое', 'ее', 'ые', 'ие', 'ым', 'им', 'ых', 'их')):
+            elif wl.endswith(ADJ_ENDINGS):
                 adjs += 1
-                words_main.append(w)
             else:
                 nouns += 1
-                words_main.append(w)
+            words_main.append(w)
 
         return nouns, verbs, adjs, conj_total, prep_total, total, words_main
 
     def _analyze_with_stanza(self, text):
         """Анализ текста с помощью Stanza (для белорусского языка)"""
-        if self.stanza_nlp is None:
-            return 0, 0, 0, 0, 0, 0, []
-
         doc = self.stanza_nlp(text)
 
-        nouns = 0
-        verbs = 0
-        adjs = 0
-        preps = 0
-        conjs = 0
+        nouns = verbs = adjs = preps = conjs = total = 0
         words_main = []
 
         for sent in doc.sentences:
             for word in sent.words:
+                total += 1
                 pos = word.upos
-                if config.LEVEL_LOG == "DEBUG":
-                    print(f"DEBUG: {pos} для {word}")
                 if pos == 'NOUN':
                     nouns += 1
                     words_main.append(word.text)
@@ -283,9 +280,32 @@ class FeatureExtractor:
                 elif pos in ('CCONJ', 'SCONJ'):
                     conjs += 1
 
-        total = len([w for s in doc.sentences for w in s.words])
-
         return nouns, verbs, adjs, conjs, preps, total, words_main
+
+    def _analyze_morphology(self, text, words_original):
+        """Выбирает морфологический анализатор под язык и доступные модели."""
+        if self.stanza_nlp is not None:
+            return self._analyze_with_stanza(text)
+        if self.language == Language.BELARUSIAN:
+            # pymorphy знает только русский, поэтому для белорусского без
+            # Stanza идём в суффиксную эвристику (о чём сказано в degraded_reason).
+            return self._analyze_fallback(words_original)
+        return self._analyze_with_pymorphy(words_original)
+
+    # Тире в начале строки — признак реплики диалога. Помимо длинного (—) и
+    # среднего (–) тире учитывается обычный дефис: в части текстов корпуса
+    # диалоги набраны именно им.
+    DIRECT_SPEECH_MARKERS = ('–', '—', '-')
+
+    @classmethod
+    def _is_direct_speech(cls, sentence):
+        return sentence.startswith(cls.DIRECT_SPEECH_MARKERS)
+
+    @staticmethod
+    def _content_words(tokens):
+        """Оставляет только словесные токены (без пунктуации и чисел)."""
+        return [t for t in tokens
+                if t not in string.punctuation and any(c.isalpha() for c in t)]
 
     def extract(self, text):
         """
@@ -316,45 +336,39 @@ class FeatureExtractor:
         if not text or len(text.strip()) < 10:
             return np.zeros(num_props)
 
-        # Предварительная обработка
         sentences = sent_tokenize(text)
-        sentences_without_primaya_rech = [s for s in sentences if not s.startswith('–') and not s.startswith('—') and not s.startswith('-')]
-        sentences_primaya_rech = [s for s in sentences if s.startswith('–') or s.startswith('—') or s.startswith('-')]
 
-        # Токенизация слов
-        def keep_word(w):
-            return w not in string.punctuation and any(c.isalpha() for c in w)
+        # Одна токенизация на весь текст вместо двух проходов
+        # (раньше отдельно токенизировался text и text.lower()).
+        words_original = self._content_words(word_tokenize(text))
+        words = [w.lower() for w in words_original]
 
-        words = word_tokenize(text.lower())
-        words = [w for w in words if keep_word(w)]
-
-        words_original = word_tokenize(text)
-        words_original = [w for w in words_original if keep_word(w)]
-
-        if len(words) == 0 or len(sentences) == 0:
+        if not words or not sentences:
             return np.zeros(num_props)
 
         features = []
 
         # ===== Группа А: Синтаксические признаки =====
 
-        # A1 и A2: Длины предложений
-        sent_lengths = []
-        for sent in sentences_without_primaya_rech:
-            sent_words = word_tokenize(sent)
-            sent_words = [w for w in sent_words if w not in string.punctuation and any(c.isalpha() for c in w)]
-            sent_lengths.append(len(sent_words))
+        # A1 и A2: Длины предложений (без прямой речи — она меряется отдельно
+        # признаком A7 и сильно занижала бы медианную длину предложения).
+        narrative = [s for s in sentences if not self._is_direct_speech(s)]
+        direct_speech = [s for s in sentences if self._is_direct_speech(s)]
+        # Сплошная прямая речь (диалог целиком) оставляла список пустым, а
+        # np.median([]) — это RuntimeWarning и nan, который затем молча
+        # превращался в 0. Считаем по всем предложениям, раз других нет.
+        length_source = narrative or sentences
+        sent_lengths = [len(self._content_words(word_tokenize(s))) for s in length_source]
 
         features.append(np.median(sent_lengths))  # A1
         features.append(np.var(sent_lengths) if len(sent_lengths) > 1 else 0)  # A2
 
         # A3: Средняя длина абзаца
-        paragraphs = re.split(r'\n\s*\n', text)
-        paragraphs = [p for p in paragraphs if p.strip() and not p.startswith('–') and not p.startswith('—')]
+        paragraphs = [p for p in re.split(r'\n\s*\n', text)
+                      if p.strip() and not self._is_direct_speech(p)]
 
         if paragraphs:
-            para_lengths = [len(sent_tokenize(p)) for p in paragraphs]
-            features.append(np.median(para_lengths))
+            features.append(np.median([len(sent_tokenize(p)) for p in paragraphs]))
         else:
             features.append(1)
 
@@ -363,26 +377,19 @@ class FeatureExtractor:
         features.append(sum(1 for s in sentences if '?' in s) / total_sentences)  # A4
         features.append(sum(1 for s in sentences if '!' in s) / total_sentences)  # A5
         features.append(sum(1 for s in sentences if '...' in s or '!..' in s) / total_sentences)  # A6
-        features.append(len(sentences_primaya_rech) / total_sentences)  # A7
+        features.append(len(direct_speech) / total_sentences)  # A7
 
         # ===== Группа Б: Лексические признаки =====
 
-        # Б1: MATTR (устойчив к длине текста, в отличие от старого RTTR — см. _mattr)
-        mattr = self._mattr(words)
-
-        features.append(mattr)
-        print("DEBUG: Группа Б: Лексические признаки")
+        features.append(self._mattr(words))  # Б1
 
         # ===== Морфологический анализ (выбор метода по языку) =====
-        if self.language == Language.BELARUSIAN and STANZA_AVAILABLE:
-            nouns, verbs, adjs, conjs, preps, total_words, words_main = self._analyze_with_stanza(text)
-        else:
-            nouns, verbs, adjs, conjs, preps, total_words, words_main = self._analyze_with_pymorphy(words_original)
+        nouns, verbs, adjs, conjs, preps, total_words, words_main = \
+            self._analyze_morphology(text, words_original)
+        logger.debug("Морфология: сущ=%d глаг=%d прил=%d всего=%d",
+                     nouns, verbs, adjs, total_words)
 
         # Б2-Б5: Части речи и длина слова
-        print("DEBUG: сущ " + str(nouns))
-        print("DEBUG: total " + str(total_words))
-        # + "глаголы "+ verbs + " " + adjs + " " +  conjs + " " +  preps + " " +  total_words + " " +  words_main)
         features.append(nouns / total_words if total_words > 0 else 0)  # Б2
         features.append(verbs / total_words if total_words > 0 else 0)  # Б3
         features.append(adjs / total_words if total_words > 0 else 0)  # Б4
@@ -397,9 +404,6 @@ class FeatureExtractor:
         features.append(conjs / total_words if total_words > 0 else 0)  # В4
         features.append(preps / total_words if total_words > 0 else 0)  # В5
 
-        # Преобразуем в numpy array
-        result = np.array(features)
-        result = np.nan_to_num(result, nan=0.0, posinf=0.0, neginf=0.0)
-
-        print(result)
+        result = np.nan_to_num(np.array(features), nan=0.0, posinf=0.0, neginf=0.0)
+        logger.debug("Вектор признаков: %s", result)
         return result

@@ -1,31 +1,70 @@
 # text-analyser-with-ii
 
-Russian literary authorship attribution tool using fuzzy logic (triangular membership functions).
+Authorship attribution for Russian and Belarusian literary texts using fuzzy
+logic (triangular membership functions over 17 stylometric features).
 
 ## Quick start
 
 ```bash
-python main.py                    # full pipeline: train profiles + analyze all anon texts
-streamlit run app.py              # UI: language selection, input, analysis + charts
-python test_all_anonim.py         # batch test (has broken imports, see below)
+pip install -r requirements-dev.txt
+python -c "import nltk; [nltk.download(p) for p in ('punkt','punkt_tab','stopwords')]"
+
+streamlit run app.py              # UI: language, text input/upload, charts
+python main.py                    # full pipeline: train + analyze texts/anonim/ + PNGs
+python scripts/batch_check.py     # batch summary over texts/anonim/
+pytest                            # tests
 ```
 
 ## Architecture
 
-- `src/` — core package: `config.py`, `feature_extractor.py`, `profile_builder.py`, `identifier.py`, `visualizer.py`
-- `main.py` — entrypoint (train → identify → visualize)
-- `app.py` — Streamlit UI: language selection, text input, analysis + charts
-- `texts/{author}/` — training texts per author; `texts/anonim/` — texts to identify
-- `output/<YYYY-MM-DD-HH-MM>/` — timestamped PNG output
+- `src/` — core package:
+  - `config.py` — authors, weights, thresholds, palette, `configure_logging()`
+  - `feature_extractor.py` — the 17 features; pymorphy3 (ru) / stanza (be)
+  - `profile_builder.py` — `TriangularMembership`, `AuthorProfile`
+  - `identifier.py` — `identify(profiles, features)`, shared by CLI and UI
+  - `visualizer.py` — charts; `use_theme(dark=…)` switches light/dark palette
+  - `report.py` — per-author feature tables (HTML/TXT)
+  - `io_utils.py` — encoding-cascade text loading
+- `main.py` — offline pipeline (train → identify → visualize)
+- `app.py` — Streamlit UI
+- `scripts/batch_check.py` — batch check with argparse
+- `tests/` — pytest suite
+- `texts/{author}/` — training texts; `texts/anonim/` — texts to identify
+- `output/<YYYY-MM-DD-HH-MM>/` — timestamped output from `main.py` (gitignored)
 
 ## Gotchas
 
-- **No dependency manifest.** Install: `pip install numpy nltk matplotlib pandas pymorphy3` (stanza optional for Belarusian). For UI: `pip install streamlit`.
-- **Pickle cache.** Profiles saved to `authors_profiles.pkl` (gitignored). Delete it to force retraining. UI saves separately per language: `authors_profiles_ru.pkl` / `authors_profiles_be.pkl`.
-- **Config.** `src/config.py` controls author list, feature weights, log level (`INFO`/`DEBUG`). `lermontov` is commented out of `AUTHORS_LIST` by default. `RUSSIAN_AUTHORS_LIST` / `BELARUSIAN_AUTHORS_LIST` used by UI.
-- **`test_all_anonim.py` has broken imports.** Lines 7-8 use `from feature_extractor import ...` instead of `from src.feature_extractor import ...`. Patch them to run.
-- **Encoding fallback.** Text loading tries `utf-8` → `cp1251` → `koi8-r` → `latin-1`.
-- **No test framework, no linter, no CI.** `test_all_anonim.py` is the only test script.
-- **Comments in Russian.** Codebase is in Russian for analyzing Russian literary texts.
-- **`create_*.py` scripts** are deprecated — they use hardcoded `/workspace/` paths (container-only).
-- **Belarusian author dirs** (`texts/kolas/`, `texts/maur/`, `texts/bryl/`) exist but are empty. Add `.txt` files before training in UI with Belarusian selected.
+- **Pickle cache.** Profiles go to `authors_profiles.pkl` (CLI) and
+  `authors_profiles_ru.pkl` / `authors_profiles_be.pkl` (UI), all gitignored.
+  `load_profiles` returns `None` if *any* profile has the wrong feature count —
+  it is all-or-nothing on purpose, so analysis never silently runs against a
+  partial author list. Delete the file or use "Переобучить" to retrain.
+- **Belarusian needs `stanza`**, which is commented out in `requirements.txt`.
+  Without it `FeatureExtractor` falls back to a suffix heuristic and sets
+  `degraded_reason`; the UI shows that as a warning. Do not let this path go
+  silent — it used to return all-zero morphology features.
+- **`config.AUTHORS_LIST` is a default, not a channel.** Pass authors explicitly
+  (`build_authors_profiles(authors=…)`); the UI must not mutate the module
+  global, since one Streamlit process serves both languages.
+- **Thresholds live in `config`** (`CONFIDENCE_THRESHOLD`,
+  `HIGH_CONFIDENCE_THRESHOLD`, `MIN_TEXT_LENGTH`). Don't hardcode 0.5/0.6/0.7.
+- **Logging, not `print`.** Modules use `logging.getLogger(__name__)`; entry
+  points call `config.configure_logging()`. `feature_extractor.extract()` runs
+  in a hot loop — keep diagnostics at `DEBUG`.
+- **The web app writes nothing to disk.** Charts are streamed to the browser and
+  offered via `st.download_button`; profile training in the UI passes
+  `save_report=False`. Only `main.py` writes to `output/`.
+- **Encoding fallback.** `utf-8 → cp1251 → koi8-r → latin-1`, via
+  `src/io_utils.py` (used by both training and the UI's file uploader).
+- **Comments and UI strings are in Russian.** Match the surrounding style.
+- **Streamlit dark mode is CSS.** Streamlit cannot swap `[theme]` at runtime, so
+  `app.py` defines both palettes as CSS variables. Target stable
+  `data-testid`/`kind` selectors only — never `.st-emotion-cache-*` hashes,
+  which change between Streamlit releases.
+
+## Corpus
+
+`texts/` holds `bulichev` (10), `drugkov` (7), `saharnov` (7) for Russian and
+`kolas` (7), `maur` (14), `bryl` (7) for Belarusian, plus `anonim` (4) for
+verification. `pushkin` (9), `lermontov` (12) and `tolstoy` (10) are present but
+not in the active author lists.
