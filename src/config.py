@@ -1,18 +1,21 @@
 # config.py
 # Глобальные настройки для всего проекта
 
+import logging
 import os
 from datetime import datetime
 
+# Уровень логирования: "INFO" или "DEBUG" (см. configure_logging).
 LEVEL_LOG = "INFO"
-#LEVEL_LOG = "DEBUG"
-ANONIM_TEXT = "texts/anonim/anonim-1-bulichev-alisa.txt"
+
+VERSION = "0.2.0"
+
 BASE_PATH = "texts/"
-#AUTHORS_LIST = ["pushkin", "lermontov", "tolstoy", "bulichev"]
-#AUTHORS_LIST = ["bulichev", "drugkov", "saharnov"]
+ANON_DIR_NAME = "anonim"
+
 RUSSIAN_AUTHORS_LIST = ["bulichev", "drugkov", "saharnov"]
 BELARUSIAN_AUTHORS_LIST = ["kolas", "maur", "bryl"]
-AUTHORS_LIST = RUSSIAN_AUTHORS_LIST  # backward compat
+AUTHORS_LIST = RUSSIAN_AUTHORS_LIST
 
 AUTHOR_LABELS = {
     'pushkin': 'Пушкин',
@@ -24,11 +27,15 @@ AUTHOR_LABELS = {
     'maur': 'Маўр',
     'bryl': 'Брыль',
 }
+
 OUTPUT_DIR_MAIN = "output/"
 
 # Создаём подпапку с timestamp в формате год-месяц-день-час-минута
 timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 OUTPUT_DIR = os.path.join("output", timestamp, "")
+
+# Кодировки, которые перебираются при чтении текстов (см. src/io_utils.py).
+TEXT_ENCODINGS = ('utf-8', 'cp1251', 'koi8-r', 'latin-1')
 
 # Параметры анализа
 N_FEATURES = 17
@@ -42,13 +49,15 @@ FEATURE_LIST_SHORT = [
     'Дл. Предл', 'Дисп.', 'Абз', '?', '!', '...', 'Прям. речь', 'MATTR', 'Сущ', 'Глаг', 'Прил',
     'ДлСл', ',', '—', ':', 'Союз', 'Предлог'
 ]
-SOFTENING = 0.7  # Увеличено для более плавных переходов между авторами и лучшей работы с короткими текстами
+
+# Доля от ширины диапазона [a, c], на которую границы треугольной функции
+# принадлежности "размываются" в обе стороны (см. TriangularMembership).
+SOFTENING = 0.7
 
 # Множитель std для построения (a, b, c) из среднего±k·std вместо буквальных
 # min/max по обучающим текстам (см. profile_builder.AuthorProfile.build_from_texts).
-# При 7-10 текстах на автора min/max систематически занижает истинный разброс —
-# k=2.5 соответствует ~98.7% массы нормального распределения и даёт запас,
-# адекватный маленькой обучающей выборке.
+# При 7-10 текстах на автора min/max систематически занижает истинный разброс,
+# поэтому берём толерантный интервал вокруг среднего.
 MEMBERSHIP_STD_MULTIPLIER = 1.5
 
 # Размер скользящего окна для MATTR (лексическое богатство, признак Б1).
@@ -56,6 +65,17 @@ MEMBERSHIP_STD_MULTIPLIER = 1.5
 # заметно меньше, чтобы MATTR вообще успевал усредниться по нескольким
 # окнам даже на коротких анонимных отрывках.
 MATTR_WINDOW = 50
+
+# ============================================================
+# Пороги и лимиты — единый источник правды для main.py и app.py
+# ============================================================
+
+# Ниже этого порога считаем, что автор не определён.
+CONFIDENCE_THRESHOLD = 0.6
+# Выше этого порога уверенность считается высокой.
+HIGH_CONFIDENCE_THRESHOLD = 0.7
+# Минимальная длина анализируемого текста в символах.
+MIN_TEXT_LENGTH = 400
 
 # Веса признаков по умолчанию - оптимизированы для лучшей дифференциации авторов
 DEFAULT_WEIGHTS = [
@@ -93,5 +113,17 @@ AUTHOR_COLORS = {
     'default': '#555049'       # нейтрально-серые чернила по умолчанию
 }
 
-# Порог уверенности идентификации
-CONFIDENCE_THRESHOLD = 0.5
+
+def configure_logging(level=None):
+    """Настраивает логирование для всего проекта.
+
+    Раньше модули печатали диагностику через print() прямо в горячем пути
+    (FeatureExtractor.extract печатал вектор признаков на каждый вызов), а
+    "уровень" проверялся вручную через `if config.LEVEL_LOG == "DEBUG"`.
+    Теперь фильтрацией занимается сам logging, а вызывающий код —
+    main.py и app.py — один раз вызывает эту функцию.
+    """
+    resolved = getattr(logging, (level or LEVEL_LOG).upper(), logging.INFO)
+    logging.basicConfig(level=resolved, format="%(message)s")
+    logging.getLogger("src").setLevel(resolved)
+    return resolved
