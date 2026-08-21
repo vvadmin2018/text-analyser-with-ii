@@ -531,32 +531,19 @@ with col_charts:
                 st.warning(f"Не удалось построить график важности признаков: {e}")
 
         with tab_all:
-            try:
-                show_chart(
-                    StyleRose.plot_fuzzy_rose(
-                        all_authors_ranges, anon_features, feature_names,
-                        title="Все авторы vs аноним", figsize=(8, 8)),
-                    "all_authors_rose.png", "dl_rose_all")
-            except Exception as e:
-                st.warning(f"Не удалось построить общую розу: {e}")
-
-            try:
-                raw = {name: [f.b for f in profile.features]
-                       for name, profile in profiles.items()}
-                raw['Аноним'] = list(anon_features)
-                normalized = {}
-                for i in range(len(feature_names)):
-                    col = [v[i] for v in raw.values()]
-                    lo, hi = min(col), max(col)
-                    for name, values in raw.items():
-                        normalized.setdefault(name, []).append(
-                            (values[i] - lo) / (hi - lo) if hi > lo else 0.5)
-                show_chart(
-                    StyleRose.plot_feature_heatmap(normalized, feature_names,
-                                                   title="Тепловая карта признаков"),
-                    "heatmap.png", "dl_heatmap")
-            except Exception as e:
-                st.warning(f"Не удалось построить тепловую карту: {e}")
+            # Роза рисуется в средней колонке: st.pyplot растягивает фигуру на
+            # всю ширину контейнера, поэтому уменьшать figsize без ограничения
+            # ширины бесполезно — меняется только разрешение, не размер.
+            _, rose_col, _ = st.columns([1, 2, 1])
+            with rose_col:
+                try:
+                    show_chart(
+                        StyleRose.plot_fuzzy_rose(
+                            all_authors_ranges, anon_features, feature_names,
+                            title="Все авторы vs аноним", figsize=(5.5, 5.5)),
+                        "all_authors_rose.png", "dl_rose_all")
+                except Exception as e:
+                    st.warning(f"Не удалось построить общую розу: {e}")
 
         with tab_profiles:
             st.caption("Значения признаков по каждому обучающему тексту автора.")
