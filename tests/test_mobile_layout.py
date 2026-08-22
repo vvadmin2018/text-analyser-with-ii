@@ -59,6 +59,18 @@ def test_header_uses_classes_not_inline_styles(app_source):
     assert 'style="height:200px' not in app_source
 
 
+def test_text_block_shrinks_to_content(app_source):
+    """С flex-grow блок занимал всю ширину и отгонял картинку к краю экрана.
+
+    Замерено: h1 занимал 800px при названии шириной ~208px, так что призрак
+    стоял далеко от текста, хотя gap между ними формально был 24px.
+    """
+    rules = re.search(r'\.app-header__text \{\{(.*?)\}\}', app_source, re.S)
+    assert rules, "правила для .app-header__text не найдены"
+    assert 'flex: 0 1 auto' in rules.group(1)
+    assert 'flex: 1 1 auto' not in rules.group(1)
+
+
 def test_ghost_shrinks_on_narrow_screens(app_source):
     """Картинка 200px и была тем, что сжимало текст."""
     assert re.search(r'@media \(max-width: 640px\).*?\.app-header__ghost.*?height: 96px',
