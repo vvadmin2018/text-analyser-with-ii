@@ -96,3 +96,47 @@ def test_describe_does_not_depend_on_extractor_language():
     ru_ex = FeatureExtractor(language=Language.RUSSIAN)
     be_ex = FeatureExtractor(language=Language.BELARUSIAN)
     assert ru_ex.describe(PROSE) == be_ex.describe(PROSE)
+
+
+# ---------- устойчивость панели статистики ----------
+
+def _describe_text():
+    """Достаёт describe_text из app.py, не поднимая Streamlit."""
+    import ast
+    import logging
+    import os
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        'app.py')
+    tree = ast.parse(open(path, encoding='utf-8').read())
+    fn = next(n for n in tree.body
+              if isinstance(n, ast.FunctionDef) and n.name == 'describe_text')
+    ns = {'logger': logging.getLogger('app')}
+    exec(compile(ast.Module(body=[fn], type_ignores=[]), path, 'exec'), ns)
+    return ns['describe_text']
+
+
+def test_describe_text_returns_stats(ru):
+    assert _describe_text()(ru, PROSE)['sentences'] == 6
+
+
+def test_stale_cached_extractor_does_not_crash(ru):
+    """Объект из @st.cache_resource может быть от прежней версии кода.
+
+    Streamlit Cloud не всегда перезапускает процесс при обновлении: app.py
+    перечитывается, а модуль остаётся в sys.modules со старым классом. Панель
+    статистики необязательна и не должна ронять уже посчитанный анализ.
+    """
+    class StaleExtractor:
+        degraded_reason = None
+
+    assert _describe_text()(StaleExtractor(), PROSE) is None
+
+
+def test_failure_inside_describe_is_swallowed(ru):
+    class Broken:
+        degraded_reason = None
+
+        def describe(self, text):
+            raise RuntimeError("что угодно")
+
+    assert _describe_text()(Broken(), PROSE) is None
