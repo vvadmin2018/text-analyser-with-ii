@@ -5,6 +5,7 @@ import io
 import logging
 import os
 import sys
+from html import escape as html_escape
 
 import matplotlib
 matplotlib.use('Agg')
@@ -154,11 +155,17 @@ def render_text_stats(stats, selected_language):
     токенизацией, что и признаки. Показывать здесь свой, отдельный подсчёт
     слов было бы хуже, чем не показывать никакого: расхождение с анализом
     выглядит как ошибка, даже когда оба числа по-своему верны.
+
+    Вёрстка своя, а не st.columns + st.metric. Причина в том, что Streamlit
+    решает про перенос колонок сам: узкой колонке он ставит
+    min-width: calc(100% - 24px), и шесть метрик на телефоне разъезжались на
+    шесть строк вместо двух рядов по три. Заставить их встать в ряд можно, но
+    тогда st.metric режет длинные значения многоточием — «58 939»
+    превращалось в «8…». Своя сетка позволяет переносить значение на вторую
+    строку вместо обрезки и не зависит от внутренних data-testid Streamlit.
     """
     if not stats:
         return
-
-    st.markdown("**О тексте:**")
 
     detected = stats.get("language")
     if detected is None:
@@ -168,15 +175,31 @@ def render_text_stats(stats, selected_language):
         if detected != selected_language:
             language_line += " ⚠️"
 
-    row1 = st.columns(3)
-    row1[0].metric("Символов", f"{stats['chars']:,}".replace(",", " "))
-    row1[1].metric("Слов", f"{stats['words']:,}".replace(",", " "))
-    row1[2].metric("Предложений", f"{stats['sentences']:,}".replace(",", " "))
+    def number(value):
+        # Неразрывный пробел как разделитель разрядов: иначе «58 939» может
+        # переломиться пополам в узкой ячейке.
+        return f"{value:,}".replace(",", "\u00A0")
 
-    row2 = st.columns(3)
-    row2[0].metric("Абзацев", f"{stats['paragraphs']:,}".replace(",", " "))
-    row2[1].metric("Без пробелов", f"{stats['chars_no_spaces']:,}".replace(",", " "))
-    row2[2].metric("Язык", language_line)
+    cells = [
+        ("Символов", number(stats["chars"])),
+        ("Слов", number(stats["words"])),
+        ("Предложений", number(stats["sentences"])),
+        ("Абзацев", number(stats["paragraphs"])),
+        ("Без пробелов", number(stats["chars_no_spaces"])),
+        ("Язык", language_line),
+    ]
+    items = "".join(
+        f'<div class="text-stats__cell">'
+        f'<span class="text-stats__label">{html_escape(label)}</span>'
+        f'<span class="text-stats__value">{html_escape(value)}</span>'
+        f'</div>'
+        for label, value in cells
+    )
+
+    st.markdown(
+        f'<div class="text-stats"><p class="text-stats__title">О тексте:</p>'
+        f'<div class="text-stats__grid">{items}</div></div>',
+        unsafe_allow_html=True)
 
     st.caption("Слова — без знаков препинания и чисел, как их считает анализатор. "
                "Язык определяется по буквам «ў», «і» против «и», «щ», «ъ».")
@@ -457,6 +480,46 @@ h1 {{ margin-top: -24px; padding-top: 0; }}
     outline: none;
     border-color: transparent;
     box-shadow: none;
+}}
+
+/* ===== Блок «О тексте» =====
+   Своя сетка вместо st.columns: Streamlit складывает узкие колонки в столбик
+   (min-width: calc(100% - 24px) при flex-wrap: wrap), из-за чего шесть метрик
+   на телефоне занимали шесть строк. Здесь три колонки заданы жёстко на всех
+   ширинах, а длинное значение переносится на вторую строку — st.metric в этом
+   случае обрезал бы его многоточием. */
+.text-stats {{ margin: 0 0 4px; }}
+.text-stats__title {{
+    font-weight: 700;
+    margin: 0 0 10px;
+    color: var(--ink);
+}}
+.text-stats__grid {{
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 10px;
+}}
+.text-stats__cell {{ display: flex; flex-direction: column; min-width: 0; }}
+.text-stats__label {{
+    font-size: 0.78rem;
+    line-height: 1.2;
+    color: var(--ink-soft);
+    margin-bottom: 2px;
+    /* Две строки резервируются всегда: в узкой ячейке «Предложений» и «Без
+       пробелов» переносятся, а «Слов» нет, и значения вставали на разной
+       высоте — ряд переставал читаться как ряд. */
+    min-height: 2.4em;
+}}
+.text-stats__value {{
+    font-size: 1.15rem;
+    line-height: 1.25;
+    font-weight: 600;
+    color: var(--ink);
+    overflow-wrap: break-word;
+}}
+@media (max-width: 640px) {{
+    .text-stats__label {{ font-size: 0.72rem; }}
+    .text-stats__value {{ font-size: 1.05rem; }}
 }}
 
 .version-badge {{
