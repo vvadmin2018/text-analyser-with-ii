@@ -164,12 +164,39 @@ def build_table_html(name, stats):
             margin: 0 0 6px;
         }}
         .meta {{ color: {INK_TEXT_SOFT}; font-size: 12.5px; margin: 2px 0; }}
+        /* Горизонтальная прокрутка вместо сжатия колонок.
+           table-layout:fixed + width:100% гарантировали, что таблица не шире
+           контейнера, — на широком экране это верно, но на телефоне 18 колонок
+           получали примерно по 21px, и числа вида 27.668 налезали друг на
+           друга, а заголовки рассыпались в столбики по одной букве. Теперь
+           таблица не уже min-width, а лишнее уезжает под свайп. */
+        .table-scroll {{
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 16px;
+        }}
+        .scroll-hint {{
+            display: none;
+            font-size: 11.5px;
+            color: {INK_TEXT_SOFT};
+            font-style: italic;
+            margin: 10px 0 0;
+        }}
         table.data-table {{
             border-collapse: collapse;
             table-layout: fixed;
             width: 100%;
-            margin-top: 16px;
+            min-width: 880px;
+            margin-top: 0;
             font-size: 11px;
+        }}
+        /* На узком экране поля съедают заметную долю ширины, а подсказка о
+           прокрутке нужна: обрезанная справа таблица иначе выглядит сломанной. */
+        @media (max-width: 700px) {{
+            body {{ padding: 10px 8px 16px; }}
+            .sheet {{ padding: 12px 10px 14px; border-radius: 8px; }}
+            h1 {{ font-size: 16px; }}
+            .scroll-hint {{ display: block; }}
         }}
         .footer-note {{
             margin-top: 14px;
@@ -184,7 +211,8 @@ def build_table_html(name, stats):
         <h1>Сводная таблица признаков автора: {author_display}</h1>
         <p class="meta">Текстов в обучающей выборке: {stats['text_count']}</p>
         <p class="meta">Дата генерации: {datetime.now().strftime("%d.%m.%Y %H:%M")}</p>
-        {styler.to_html()}
+        <div class="table-scroll">{styler.to_html()}</div>
+        <p class="scroll-hint">Таблицу можно прокручивать вбок.</p>
         <p class="footer-note">Значения округлены до 3 знаков после запятой.</p>
     </div>
 </body>
