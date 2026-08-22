@@ -2,6 +2,7 @@
 """Веб-приложение: выбор языка, ввод текста, анализ авторства и графики."""
 import base64
 import io
+import logging
 import os
 import sys
 
@@ -22,6 +23,7 @@ from src.visualizer import StyleRose                          # noqa: E402
 from main import build_authors_profiles, load_profiles, save_profiles  # noqa: E402
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
+logger = logging.getLogger(__name__)
 
 LANG_OPTIONS = {
     "Русский": {
@@ -112,6 +114,31 @@ def language_warning(text, language):
                 "в нём нет. Результат может быть бессмысленным.")
     return ("Похоже, текст на белорусском языке. Переключите язык анализа, "
             "иначе результат будет бессмысленным.")
+
+
+def describe_text(extractor, text):
+    """Статистика текста, которая не имеет права уронить анализ.
+
+    Блок «О тексте» — необязательное дополнение к результату, поэтому любая
+    ошибка здесь стоит показанной панели, а не всего разбора.
+
+    Отдельно ловится AttributeError: get_extractor обёрнут в
+    @st.cache_resource, и при обновлении кода без перезапуска процесса (так
+    иногда деплоит Streamlit Cloud) в кэше остаётся объект, созданный прежней
+    версией класса — у него describe ещё нет, хотя app.py уже новый. Ровно на
+    этом приложение и падало: трассировка обрывалась на самом вызове, без
+    единого кадра внутри feature_extractor.
+    """
+    describe = getattr(extractor, "describe", None)
+    if describe is None:
+        logger.warning("У анализатора нет метода describe — вероятно, в кэше "
+                       "остался объект от прежней версии кода")
+        return None
+    try:
+        return describe(text)
+    except Exception as e:
+        logger.warning("Не удалось собрать статистику текста: %s", e)
+        return None
 
 
 LANGUAGE_NAMES = {
@@ -305,6 +332,7 @@ def run_analysis():
             return
 
         best_author, results, similarity_details = identify(profiles, anon_features)
+        stats = describe_text(extractor, text)
 
     st.session_state.message = None
     st.session_state.results = {
@@ -315,7 +343,7 @@ def run_analysis():
         "similarity_details": similarity_details,
         "degraded": extractor.degraded_reason,
         "lang_warning": language_warning(text, cur_lang),
-        "stats": extractor.describe(text),
+        "stats": stats,
     }
 
 
