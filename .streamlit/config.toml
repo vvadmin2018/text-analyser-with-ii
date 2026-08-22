@@ -1,5 +1,9 @@
 [server]
 headless = true
+# Лимит на загружаемый файл, МБ. По умолчанию Streamlit разрешает 200 — для
+# .txt со стилевым анализом это лишнее: текст всё равно уходит в text_area,
+# а два мегабайта — это примерно роман.
+maxUploadSize = 2
 
 [browser]
 gatherUsageStats = false

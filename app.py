@@ -219,7 +219,8 @@ st.sidebar.divider()
 st.sidebar.subheader("Профили авторов")
 
 if st.session_state.profiles is None:
-    st.session_state.profiles = load_profiles(profile_path)
+    st.session_state.profiles = load_profiles(profile_path,
+                                              authors=lang_cfg["authors"])
 
 if st.session_state.profiles is not None:
     render_profiles_sidebar(st.session_state.profiles)
@@ -416,18 +417,29 @@ col_input, col_charts = st.columns([1, 3] if results_state else [3, 2], gap="med
 
 with col_input:
     if results_state is None:
-        uploaded = st.file_uploader("Или загрузите .txt файл", type=["txt"],
-                                    label_visibility="collapsed")
+        uploaded = st.file_uploader(
+            "Или загрузите .txt файл", type=["txt"],
+            label_visibility="collapsed",
+            help=f"Не больше {config.MAX_UPLOAD_MB} МБ")
         # Читаем каждый файл один раз, иначе он бы затирал правки пользователя
         # на каждом rerun.
         if uploaded is not None and uploaded.name != st.session_state.last_upload:
-            decoded = io_utils.decode_text(uploaded.getvalue(), uploaded.name)
-            if decoded is None:
-                st.error(f"Не удалось определить кодировку файла {uploaded.name}")
-            else:
+            # Streamlit отсекает файлы больше server.maxUploadSize сам, но
+            # только если конфиг долетел до сервера: при запуске из другого
+            # каталога .streamlit/config.toml не подхватывается. Дублируем
+            # проверку здесь, чтобы лимит не зависел от способа запуска.
+            if uploaded.size > config.MAX_UPLOAD_MB * 1024 * 1024:
+                st.error(f"Файл {uploaded.name} больше {config.MAX_UPLOAD_MB} МБ "
+                         f"({uploaded.size / 1024 / 1024:.1f} МБ)")
                 st.session_state.last_upload = uploaded.name
-                st.session_state.input_text = decoded
-                st.rerun()
+            else:
+                decoded = io_utils.decode_text(uploaded.getvalue(), uploaded.name)
+                if decoded is None:
+                    st.error(f"Не удалось определить кодировку файла {uploaded.name}")
+                else:
+                    st.session_state.last_upload = uploaded.name
+                    st.session_state.input_text = decoded
+                    st.rerun()
 
         st.text_area("Введите текст для анализа:", height=250, key="input_text",
                      placeholder="Вставьте текст на русском или белорусском языке...")

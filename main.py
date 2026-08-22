@@ -77,13 +77,21 @@ def save_profiles(profiles, filename="authors_profiles.pkl"):
     logger.info("  💾 Портреты сохранены в %s", filename)
 
 
-def load_profiles(filename="authors_profiles.pkl"):
+def load_profiles(filename="authors_profiles.pkl", authors=None):
     """Загружаем ранее сохранённые портреты.
 
-    Возвращает None, если файла нет или ХОТЯ БЫ ОДИН портрет не соответствует
-    текущему числу признаков. Раньше функция возвращала уцелевшее подмножество,
-    и анализ молча шёл по неполному списку авторов — ровно тот случай, ради
-    которого проверка и писалась.
+    Возвращает None, если файла нет, если ХОТЯ БЫ ОДИН портрет не соответствует
+    текущему числу признаков или если сохранённый состав авторов разошёлся с
+    ожидаемым. Раньше функция возвращала уцелевшее подмножество, и анализ молча
+    шёл по неполному списку авторов — ровно тот случай, ради которого проверка
+    и писалась.
+
+    Args:
+        filename: файл с портретами.
+        authors: ожидаемый состав авторов. Без него добавление автора в
+            config не имело никакого эффекта: старый .pkl проходил проверку
+            по числу признаков и загружался как есть, поэтому нового автора
+            не было ни в списке, ни в результатах — до ручного «Переобучить».
     """
     if not os.path.exists(filename):
         return None
@@ -106,6 +114,15 @@ def load_profiles(filename="authors_profiles.pkl"):
                 "  ❌ %s: портрет повреждён или устарел (%d признаков, ожидалось %d) — "
                 "все портреты будут перестроены", name, n_feat, config.N_FEATURES)
             return None
+
+    if authors is not None and set(profiles) != set(authors):
+        added = sorted(set(authors) - set(profiles))
+        removed = sorted(set(profiles) - set(authors))
+        logger.info(
+            "  🔄 Состав авторов изменился (добавлены: %s; убраны: %s) — "
+            "портреты будут перестроены",
+            ", ".join(added) or "нет", ", ".join(removed) or "нет")
+        return None
 
     logger.info("📂 Загружены портреты из %s: %s", filename, ", ".join(profiles))
     return profiles
@@ -257,11 +274,16 @@ def main():
     logger.info("🕵️  НЕЧЁТКИЙ ДЕТЕКТИВ - Определение авторства текста")
     logger.info("=" * 60)
 
+    language = config.LANGUAGE_MODE
+    profile_file = config.PROFILE_FILE
+    logger.info("🌐 Язык анализа: %s (config.LANGUAGE_MODE)", language)
+    logger.info("👤 Авторы: %s", ", ".join(config.AUTHORS_LIST))
+
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
     logger.info("📁 Вывод графики будет в папку: %s", config.OUTPUT_DIR)
 
     # ШАГ 1: Пробуем загрузить уже готовые портреты
-    profiles = load_profiles()
+    profiles = load_profiles(profile_file, authors=config.AUTHORS_LIST)
 
     if profiles is None:
         logger.info("🔄 Не найдены сохранённые портреты. Начинаем обучение...")
@@ -272,8 +294,8 @@ def main():
             logger.error("   Создайте папку 'texts/' с подпапками авторов и .txt файлами")
             return 1
 
-        profiles = create_fuzzy_profiles(authors_data)
-        save_profiles(profiles)
+        profiles = create_fuzzy_profiles(authors_data, language=language)
+        save_profiles(profiles, profile_file)
     else:
         logger.info("✅ Используем готовые портреты авторов")
 
@@ -299,7 +321,9 @@ def main():
         for name, profile in profiles.items()
     }
 
-    extractor = FeatureExtractor(language=Language.RUSSIAN)
+    extractor = FeatureExtractor(language=language)
+    if extractor.degraded_reason:
+        logger.warning("⚠️ Морфология в упрощённом режиме: %s", extractor.degraded_reason)
 
     for anonymous_file in anonim_files:
         analysis = analyze_anonymous_file(profiles, anonymous_file, extractor)
