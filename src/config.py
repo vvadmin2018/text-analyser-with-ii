@@ -14,11 +14,11 @@ BASE_PATH = "texts/"
 ANON_DIR_NAME = "anonim"
 
 RUSSIAN_AUTHORS_LIST = ["bulichev", "drugkov", "saharnov"]
-BELARUSIAN_AUTHORS_LIST = ["baravikova", "maur", "bryl"]
+BELARUSIAN_AUTHORS_LIST = ["baravikova", "maur", "misko"]
 
 # Язык, на котором работает main.py: "ru" или "be". Веб-приложение язык
 # выбирает само (селектор в боковой панели) и это значение не читает.
-LANGUAGE_MODE = "ru"
+LANGUAGE_MODE = "be"
 
 AUTHORS_BY_LANGUAGE = {
     "ru": RUSSIAN_AUTHORS_LIST,
@@ -53,7 +53,7 @@ AUTHOR_LABELS = {
     'bulichev': 'Кир Булычёв',
     'drugkov': 'Юрий Дружков (Постников)',
     'saharnov': 'Святослав Сахарнов',
-    'kolas': 'Колас',
+    'misko': 'Павал Місько',
     'maur': 'Янка Маўр',
     'bryl': 'Брыль',
     'baravikova': 'Раіса Баравікова'
