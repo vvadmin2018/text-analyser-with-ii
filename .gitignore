@@ -1,4 +1,3 @@
-```
 # Build outputs and generated files
 output/
 *.pkl
@@ -32,4 +31,3 @@ build/
 *.egg
 *.egg-info/
 MANIFEST
-```

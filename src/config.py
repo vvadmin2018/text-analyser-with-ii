@@ -15,7 +15,37 @@ ANON_DIR_NAME = "anonim"
 
 RUSSIAN_AUTHORS_LIST = ["bulichev", "drugkov", "saharnov"]
 BELARUSIAN_AUTHORS_LIST = ["baravikova", "maur", "bryl"]
-AUTHORS_LIST = RUSSIAN_AUTHORS_LIST
+
+# Язык, на котором работает main.py: "ru" или "be". Веб-приложение язык
+# выбирает само (селектор в боковой панели) и это значение не читает.
+LANGUAGE_MODE = "ru"
+
+AUTHORS_BY_LANGUAGE = {
+    "ru": RUSSIAN_AUTHORS_LIST,
+    "be": BELARUSIAN_AUTHORS_LIST,
+}
+
+# Портреты хранятся по языкам раздельно: наборы авторов не пересекаются, и
+# один общий файл при смене LANGUAGE_MODE пришлось бы каждый раз перестраивать.
+PROFILE_FILE_BY_LANGUAGE = {
+    "ru": "authors_profiles_ru.pkl",
+    "be": "authors_profiles_be.pkl",
+}
+
+
+def _check_language_mode(mode):
+    if mode not in AUTHORS_BY_LANGUAGE:
+        raise ValueError(
+            f"config.LANGUAGE_MODE = {mode!r}, допустимы "
+            f"{sorted(AUTHORS_BY_LANGUAGE)}"
+        )
+    return mode
+
+
+_check_language_mode(LANGUAGE_MODE)
+
+AUTHORS_LIST = AUTHORS_BY_LANGUAGE[LANGUAGE_MODE]
+PROFILE_FILE = PROFILE_FILE_BY_LANGUAGE[LANGUAGE_MODE]
 
 AUTHOR_LABELS = {
     'pushkin': 'Пушкин',
@@ -37,6 +67,11 @@ OUTPUT_DIR = os.path.join("output", timestamp, "")
 
 # Кодировки, которые перебираются при чтении текстов (см. src/io_utils.py).
 TEXT_ENCODINGS = ('utf-8', 'cp1251', 'koi8-r', 'latin-1')
+
+# Предел размера загружаемого файла, МБ. Должен совпадать с
+# server.maxUploadSize в .streamlit/config.toml — Streamlit читает только его,
+# а приложение дублирует проверку на случай запуска без этого конфига.
+MAX_UPLOAD_MB = 2
 
 # Параметры анализа
 N_FEATURES = 17
