@@ -18,7 +18,7 @@ BELARUSIAN_AUTHORS_LIST = ["baravikova", "maur", "misko"]
 
 # Язык, на котором работает main.py: "ru" или "be". Веб-приложение язык
 # выбирает само (селектор в боковой панели) и это значение не читает.
-LANGUAGE_MODE = "be"
+LANGUAGE_MODE = "ru"
 
 AUTHORS_BY_LANGUAGE = {
     "ru": RUSSIAN_AUTHORS_LIST,
