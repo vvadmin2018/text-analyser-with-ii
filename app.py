@@ -463,18 +463,59 @@ h1 {{ margin-top: -24px; padding-top: 0; }}
     position: fixed; bottom: 8px; right: 12px;
     font-size: 11px; color: var(--ink-soft); opacity: 0.6;
 }}
+
+/* ===== Шапка =====
+   Название — одно слово, но Streamlit задаёт overflow-wrap:break-word, из-за
+   чего браузер вправе разорвать его посреди букв. Флекс-элемент с текстом
+   сжимался под давлением картинки высотой 200px, и на телефоне «G»
+   перепрыгивала на отдельную строку. Лечится тремя вещами сразу: запретом
+   переноса внутри слова, запретом сжатия текстового блока ниже содержимого и
+   уменьшением картинки на узком экране. */
+.app-header {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}}
+.app-header__text {{
+    flex: 1 1 auto;
+    min-width: 0;
+}}
+.app-header h1 {{
+    margin: 0;
+    padding: 0;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    hyphens: none;
+    font-size: clamp(1.9rem, 9vw, 2.75rem);
+}}
+.app-header__ghost {{
+    height: 200px;
+    width: auto;
+    max-width: 40%;
+    object-fit: contain;
+    margin-left: 16px;
+    flex: 0 1 auto;
+}}
+@media (max-width: 640px) {{
+    .app-header__ghost {{
+        height: 96px;
+        margin-left: 8px;
+    }}
+}}
 </style>
 """
 st.markdown(APP_CSS, unsafe_allow_html=True)
 
 st.markdown(f"""
-<div style="display:flex; align-items:center; gap:8px;">
-  <div>
-    <h1 style="margin:0; padding:0;">THinkING</h1>
+<div class="app-header">
+  <div class="app-header__text">
+    <h1>THinkING</h1>
     <p class="subtitle" style="margin:0; font-size:14px;">Думающие чернила</p>
   </div>
   <img src="data:image/png;base64,{get_ghost_b64(st.session_state.dark_mode)}"
-       alt="THinkING" style="height:200px; width:auto; margin-left:16px;">
+       alt="THinkING" class="app-header__ghost">
 </div>
 """, unsafe_allow_html=True)
 
