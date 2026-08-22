@@ -14,7 +14,7 @@ BASE_PATH = "texts/"
 ANON_DIR_NAME = "anonim"
 
 RUSSIAN_AUTHORS_LIST = ["bulichev", "drugkov", "saharnov"]
-BELARUSIAN_AUTHORS_LIST = ["kolas", "maur", "bryl"]
+BELARUSIAN_AUTHORS_LIST = ["baravikova", "maur", "bryl"]
 AUTHORS_LIST = RUSSIAN_AUTHORS_LIST
 
 AUTHOR_LABELS = {
@@ -24,8 +24,9 @@ AUTHOR_LABELS = {
     'drugkov': 'Юрий Дружков (Постников)',
     'saharnov': 'Святослав Сахарнов',
     'kolas': 'Колас',
-    'maur': 'Маўр',
+    'maur': 'Янка Маўр',
     'bryl': 'Брыль',
+    'baravikova': 'Раіса Баравікова'
 }
 
 OUTPUT_DIR_MAIN = "output/"
