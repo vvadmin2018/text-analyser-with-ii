@@ -14,7 +14,8 @@ import streamlit as st           # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src import config, io_utils, visualizer                  # noqa: E402
-from src.feature_extractor import FeatureExtractor, Language  # noqa: E402
+from src.feature_extractor import (FeatureExtractor, Language,  # noqa: E402
+                                   detect_language)
 from src.identifier import identify                           # noqa: E402
 from src.profile_builder import AuthorProfile                 # noqa: E402
 from src.visualizer import StyleRose                          # noqa: E402
@@ -97,18 +98,61 @@ def language_warning(text, language):
 
     Без неё можно было проанализировать русский текст белорусскими профилями
     и получить уверенный, но бессмысленный процент.
-    """
-    lower = text.lower()
-    be_markers = lower.count('ў') + lower.count('і')
-    ru_markers = lower.count('и') + lower.count('ъ') + lower.count('ы') + lower.count('щ')
 
-    if language == Language.BELARUSIAN and be_markers == 0 and ru_markers > 0:
+    Опирается на тот же detect_language, что и блок статистики: иначе
+    предупреждение и показанный пользователю «предполагаемый язык» могли бы
+    противоречить друг другу.
+    """
+    detected = detect_language(text)
+    if detected is None or detected == language:
+        return None
+
+    if language == Language.BELARUSIAN:
         return ("Похоже, текст не на белорусском языке — специфичных букв «ў» и «і» "
                 "в нём нет. Результат может быть бессмысленным.")
-    if language == Language.RUSSIAN and be_markers > ru_markers:
-        return ("Похоже, текст на белорусском языке. Переключите язык анализа, "
-                "иначе результат будет бессмысленным.")
-    return None
+    return ("Похоже, текст на белорусском языке. Переключите язык анализа, "
+            "иначе результат будет бессмысленным.")
+
+
+LANGUAGE_NAMES = {
+    Language.RUSSIAN: "русский",
+    Language.BELARUSIAN: "белорусский",
+}
+
+
+def render_text_stats(stats, selected_language):
+    """Общая информация о разобранном тексте.
+
+    Числа берутся из FeatureExtractor.describe(), то есть считаны той же
+    токенизацией, что и признаки. Показывать здесь свой, отдельный подсчёт
+    слов было бы хуже, чем не показывать никакого: расхождение с анализом
+    выглядит как ошибка, даже когда оба числа по-своему верны.
+    """
+    if not stats:
+        return
+
+    st.markdown("**О тексте:**")
+
+    detected = stats.get("language")
+    if detected is None:
+        language_line = "не определён"
+    else:
+        language_line = LANGUAGE_NAMES.get(detected, detected)
+        if detected != selected_language:
+            language_line += " ⚠️"
+
+    row1 = st.columns(3)
+    row1[0].metric("Символов", f"{stats['chars']:,}".replace(",", " "))
+    row1[1].metric("Слов", f"{stats['words']:,}".replace(",", " "))
+    row1[2].metric("Предложений", f"{stats['sentences']:,}".replace(",", " "))
+
+    row2 = st.columns(3)
+    row2[0].metric("Абзацев", f"{stats['paragraphs']:,}".replace(",", " "))
+    row2[1].metric("Без пробелов", f"{stats['chars_no_spaces']:,}".replace(",", " "))
+    row2[2].metric("Язык", language_line)
+
+    st.caption("Слова — без знаков препинания и чисел, как их считает анализатор. "
+               "Язык определяется по буквам «ў», «і» против «и», «щ», «ъ».")
 
 
 # ============================================================
@@ -271,6 +315,7 @@ def run_analysis():
         "similarity_details": similarity_details,
         "degraded": extractor.degraded_reason,
         "lang_warning": language_warning(text, cur_lang),
+        "stats": extractor.describe(text),
     }
 
 
@@ -483,6 +528,9 @@ with col_input:
                 f"Ни один автор не достиг порога уверенности "
                 f"({config.CONFIDENCE_THRESHOLD:.0%}). Лучший результат: "
                 f"**{author_display(r['best_author'])}** — {score:.1%}")
+
+        st.divider()
+        render_text_stats(r.get("stats"), cur_lang)
 
         st.divider()
         st.markdown("**Все авторы:**")
