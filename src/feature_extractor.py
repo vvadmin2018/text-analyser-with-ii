@@ -37,6 +37,29 @@ class Language:
     BELARUSIAN = 'be'
 
 
+# Буквы, которые есть только в одном из двух алфавитов. В белорусском нет
+# «и», «щ» и «ъ»; в русском нет «ў» и «і». Этого хватает, чтобы различить
+# языки на любом связном тексте: служебные слова с этими буквами частотны.
+_BELARUSIAN_ONLY = 'ўі'
+_RUSSIAN_ONLY = 'ищъ'
+
+
+def detect_language(text):
+    """Определяет язык текста по специфичным буквам алфавита.
+
+    Возвращает Language.RUSSIAN, Language.BELARUSIAN или None, если
+    отличительных букв в тексте нет (очень короткий отрывок, латиница,
+    текст без этих литер) — тогда честнее не гадать.
+    """
+    lower = (text or '').lower()
+    be = sum(lower.count(ch) for ch in _BELARUSIAN_ONLY)
+    ru = sum(lower.count(ch) for ch in _RUSSIAN_ONLY)
+
+    if be == 0 and ru == 0:
+        return None
+    return Language.BELARUSIAN if be > ru else Language.RUSSIAN
+
+
 class FeatureExtractor:
     """Извлекает стилевые признаки из текста с поддержкой русского и белорусского языков"""
 
@@ -373,6 +396,32 @@ class FeatureExtractor:
         """Оставляет только словесные токены (без пунктуации и чисел)."""
         return [t for t in tokens
                 if t not in string.punctuation and any(c.isalpha() for c in t)]
+
+    def describe(self, text):
+        """Общая статистика текста для показа пользователю.
+
+        Считается той же токенизацией, что и признаки в extract(), — иначе
+        число слов на экране расходилось бы с тем, по которому на самом деле
+        построен анализ. Слова здесь — только словесные токены: знаки
+        препинания и чистые числа не в счёт.
+        """
+        text = text or ''
+        if not text.strip():
+            return {'chars': 0, 'chars_no_spaces': 0, 'paragraphs': 0,
+                    'sentences': 0, 'words': 0, 'language': None}
+
+        paragraphs = [p for p in re.split(r'\n\s*\n', text) if p.strip()]
+
+        return {
+            'chars': len(text),
+            'chars_no_spaces': sum(1 for ch in text if not ch.isspace()),
+            # Абзац без пустой строки-разделителя не выделяется, поэтому текст
+            # одним куском — это один абзац, а не ноль.
+            'paragraphs': len(paragraphs) or 1,
+            'sentences': len(sent_tokenize(text)),
+            'words': len(self._content_words(word_tokenize(text))),
+            'language': detect_language(text),
+        }
 
     def extract(self, text):
         """
