@@ -100,3 +100,49 @@ def test_scroll_hint_shown_only_on_narrow_screens(table_html):
 def test_table_still_fills_wide_screens(table_html):
     """min-width не должен ломать десктоп: ширина по-прежнему 100%."""
     assert re.search(r'table\.data-table \{.*?width: 100%', table_html, re.S)
+
+
+# ---------- блок «О тексте» ----------
+
+def test_stats_use_own_grid_not_streamlit_columns(app_source):
+    """st.columns складывался в столбик: шесть метрик — шесть строк.
+
+    Заставить колонки встать в ряд можно, но тогда st.metric режет длинные
+    значения многоточием — «58 939» превращалось в «8…». Своя сетка позволяет
+    перенести значение на вторую строку вместо обрезки.
+    """
+    assert 'class="text-stats__grid"' in app_source
+    assert 'row1 = st.columns(3)' not in app_source
+    assert '.metric("Символов"' not in app_source
+
+
+def test_stats_grid_is_three_columns_at_every_width(app_source):
+    rules = re.search(r'\.text-stats__grid \{\{(.*?)\}\}', app_source, re.S)
+    assert rules, "правила для .text-stats__grid не найдены"
+    assert 'repeat(3, minmax(0, 1fr))' in rules.group(1)
+    # Медиазапрос вправе менять кегль, но не число колонок.
+    narrow = re.search(r'@media \(max-width: 640px\) \{\{(.*?)\n\}\}', app_source, re.S)
+    assert narrow and 'grid-template-columns' not in narrow.group(1)
+
+
+def test_stats_values_wrap_instead_of_being_clipped(app_source):
+    rules = re.search(r'\.text-stats__value \{\{(.*?)\}\}', app_source, re.S)
+    assert rules and 'overflow-wrap: break-word' in rules.group(1)
+    assert 'text-overflow: ellipsis' not in rules.group(1)
+
+
+def test_labels_reserve_two_lines_so_values_align(app_source):
+    """Без резерва «Предложений» переносилось, и значения вставали вразнобой."""
+    rules = re.search(r'\.text-stats__label \{\{(.*?)\}\}', app_source, re.S)
+    assert rules and 'min-height' in rules.group(1)
+
+
+def test_thousands_separator_is_non_breaking(app_source):
+    """Обычный пробел позволял «58 939» переломиться пополам в узкой ячейке."""
+    assert '\\u00A0' in app_source or '\u00A0' in app_source
+
+
+def test_stats_values_are_escaped(app_source):
+    """Значения уходят в разметку через unsafe_allow_html."""
+    assert 'html_escape(label)' in app_source
+    assert 'html_escape(value)' in app_source
