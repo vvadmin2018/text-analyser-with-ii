@@ -284,6 +284,18 @@ class StyleRose:
                 return 0.5
             return (x - global_min[i]) / span
 
+        # ===== Масштаб под фактический размер фигуры =====
+        # Толщины, кегли и отступ легенды были подобраны под figsize=(11, 9) и
+        # заданы в пунктах, то есть в абсолютных единицах. При уменьшении
+        # фигуры оси сжимались, а маркеры и подписи — нет, поэтому на 5.5x5.5
+        # маркеры перекрывали друг друга, а легенда наезжала на график.
+        # Всё, что раньше было константой, теперь домножается на scale.
+        base_w, base_h = 11.0, 9.0
+        scale = min(figsize[0] / base_w, figsize[1] / base_h)
+        # Ниже ~0.55 подписи осей становятся нечитаемыми быстрее, чем график
+        # успевает выиграть в компактности, поэтому кегли снижаем мягче линий.
+        text_scale = max(0.62, scale ** 0.6)
+
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111, projection='polar')
         ax.set_facecolor(theme.paper_bg)
@@ -318,42 +330,62 @@ class StyleRose:
             # Тонкий контур границ полосы — иначе край диапазона на бумажном
             # фоне теряется, особенно когда полосы разных авторов пересекаются.
             ax.plot(plot_angles, lower_band, '-', color=color, alpha=0.55,
-                    linewidth=0.9, zorder=2)
+                    linewidth=0.9 * scale, zorder=2)
             ax.plot(plot_angles, upper_band, '-', color=color, alpha=0.55,
-                    linewidth=0.9, zorder=2)
+                    linewidth=0.9 * scale, zorder=2)
 
             b_plot = b_norm + [b_norm[0]]
-            b_line, = ax.plot(plot_angles, b_plot, 'o-', linewidth=2.4, color=color,
-                              label=disp_name, markersize=6.5, zorder=4)
-            b_line.set_path_effects(_glow(4.0))
+            b_line, = ax.plot(plot_angles, b_plot, 'o-', linewidth=2.4 * scale,
+                              color=color, label=disp_name,
+                              markersize=6.5 * scale, zorder=4)
+            b_line.set_path_effects(_glow(4.0 * scale))
 
         # ===== Анонимный текст =====
         anon_norm = [norm(anon_features[i], i) for i in range(n_features)]
         anon_plot = anon_norm + [anon_norm[0]]
-        anon_line, = ax.plot(plot_angles, anon_plot, 'D-', linewidth=3.4,
+        anon_line, = ax.plot(plot_angles, anon_plot, 'D-', linewidth=3.4 * scale,
                              color=theme.anon_color, label='Анонимный текст',
-                             markersize=8.5, markerfacecolor=theme.anon_accent,
+                             markersize=8.5 * scale, markerfacecolor=theme.anon_accent,
                              markeredgecolor=theme.anon_color,
-                             markeredgewidth=1.5, zorder=6)
-        anon_line.set_path_effects(_glow(5.4))
+                             markeredgewidth=1.5 * scale, zorder=6)
+        anon_line.set_path_effects(_glow(5.4 * scale))
 
         ax.set_ylim(0, 1)
         ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
-        ax.set_yticklabels(['0', '0.2', '0.4', '0.6', '0.8', '1.0'], fontsize=8.5,
-                           color=theme.ink_text_soft)
+        ax.set_yticklabels(['0', '0.2', '0.4', '0.6', '0.8', '1.0'],
+                           fontsize=8.5 * text_scale, color=theme.ink_text_soft)
         ax.set_xticks(angles)
-        ax.set_xticklabels(feature_names, size=9.5, fontweight='bold', color=theme.ink_text)
-        ax.grid(True, linestyle='--', linewidth=0.8, alpha=0.55, color=theme.grid, zorder=1)
+        ax.set_xticklabels(feature_names, size=9.5 * text_scale, fontweight='bold',
+                           color=theme.ink_text)
+        ax.grid(True, linestyle='--', linewidth=0.8 * scale, alpha=0.55,
+                color=theme.grid, zorder=1)
         _style_spines(ax)
 
         plt.title(title + "\n(закрашенная полоса — диапазон [a, c] автора)",
-                  size=12.5, fontweight='bold', pad=24, color=theme.ink_text)
+                  size=12.5 * text_scale, fontweight='bold', pad=24 * scale,
+                  color=theme.ink_text)
 
-        ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.22),
-                  ncol=3, fontsize=8.8, framealpha=0.95)
+        # Отступ под легенду считается по её фактическому размеру, а не по
+        # константе. Раньше здесь стояло bbox_to_anchor=(0.5, -0.22) —
+        # значение, подобранное под три строки при figsize=(11, 9). Число
+        # строк зависит от количества авторов (каждый даёт две записи: линию и
+        # диапазон), а доля высоты, которую занимает строка, — от размера
+        # фигуры, поэтому фиксированный отступ верен ровно в одном случае.
+        n_entries = 2 * len(authors_to_plot) + 1
+        ncol = 1 if n_entries <= 2 else (2 if n_entries <= 4 else 3)
+        legend = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),
+                           ncol=ncol, fontsize=8.8 * text_scale, framealpha=0.95)
         ax.set_aspect('equal', adjustable='box', anchor='C')
 
         plt.tight_layout()
+
+        # tight_layout не учитывает легенду, вынесенную за пределы осей: она
+        # либо обрезается краем холста, либо накладывается на оси. Меряем её
+        # после отрисовки и резервируем ровно столько места, сколько нужно.
+        fig.canvas.draw()
+        legend_h = (legend.get_window_extent()
+                    .transformed(fig.transFigure.inverted()).height)
+        fig.subplots_adjust(bottom=min(0.45, legend_h + 0.06))
         return fig
 
     # ============== ДОПОЛНИТЕЛЬНЫЕ ГРАФИКИ ==============
