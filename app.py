@@ -96,6 +96,16 @@ def show_chart(fig, download_name, key):
     plt.close(fig)
 
 
+def text_size_mb(text):
+    """Размер текста в мегабайтах, по байтам UTF-8.
+
+    Не по символам: кириллица в UTF-8 занимает два байта на букву, поэтому
+    счёт по символам показал бы вдвое меньше, чем текст весит на самом деле,
+    и «3 МБ» в интерфейсе означали бы 6 МБ.
+    """
+    return len((text or "").encode("utf-8")) / (1024 * 1024)
+
+
 def language_warning(text, language):
     """Грубая проверка, что текст написан на выбранном языке.
 
@@ -343,6 +353,12 @@ def run_analysis():
         st.session_state.message = ("warning", (
             f"Текст слишком короткий (минимум {config.MIN_TEXT_LENGTH} символов, "
             f"сейчас {len(text.strip())})."))
+        return
+    size_mb = text_size_mb(text)
+    if size_mb > config.MAX_TEXT_MB:
+        st.session_state.message = ("error", (
+            f"Текст слишком большой: {size_mb:.1f} МБ при пределе "
+            f"{config.MAX_TEXT_MB} МБ. Разберите его частями."))
         return
 
     with st.spinner("Анализ..."):
@@ -625,8 +641,19 @@ with col_input:
                      placeholder="Вставьте текст на русском или белорусском языке...")
 
         text_len = len(st.session_state.input_text)
-        st.caption(f"Длина текста: {text_len} символов "
+        size_mb = text_size_mb(st.session_state.input_text)
+        counter = (f"Длина текста: {text_len} символов "
                    f"(минимум {config.MIN_TEXT_LENGTH})")
+        # Мегабайты показываются, только когда до предела уже недалеко: на
+        # обычном тексте это лишний шум, а вот упереться в лимит на кнопке
+        # «Анализировать», ничего о нём не зная, — неприятный сюрприз.
+        if size_mb >= config.MAX_TEXT_MB / 10:
+            counter += f" · {size_mb:.1f} из {config.MAX_TEXT_MB} МБ"
+        if size_mb > config.MAX_TEXT_MB:
+            st.caption(counter)
+            st.error(f"Текст больше {config.MAX_TEXT_MB} МБ — анализ не запустится.")
+        else:
+            st.caption(counter)
 
         col_a, col_b = st.columns(2, gap="small")
         with col_a:
