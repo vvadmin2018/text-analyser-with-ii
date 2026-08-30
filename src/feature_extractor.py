@@ -108,7 +108,7 @@ class FeatureExtractor:
         """
         if not STANZA_AVAILABLE:
             self.degraded_reason = (
-                "части речи белорусского текста определяются по окончаниям слов "
+                "части речи белорусского текста определяются по окончаниям слов."
             )
             return
 
