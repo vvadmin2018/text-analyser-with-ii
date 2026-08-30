@@ -109,9 +109,6 @@ class FeatureExtractor:
         if not STANZA_AVAILABLE:
             self.degraded_reason = (
                 "части речи белорусского текста определяются по окончаниям слов "
-                "(приблизительно, порядка 85% верных разборов). Точную морфологию "
-                "даёт Stanza: `pip install stanza` — модель be_hse скачается сама "
-                "при первом запуске (~500 МБ вместе с torch)"
             )
             return
 
@@ -126,10 +123,7 @@ class FeatureExtractor:
         except Exception as e:
             logger.warning("⚠️ Не удалось загрузить Stanza для белорусского: %s", e)
             self.degraded_reason = (
-                f"stanza установлена, но модель не поднялась ({e}). Части речи "
-                f"определяются по окончаниям слов. Чаще всего модель просто не "
-                f"скачана — помогает `python -c \"import stanza; stanza.download('be')\"` "
-                f"при доступе в интернет"
+                f"stanza установлена, но модель не поднялась ({e})."
             )
 
     def _init_russian_dictionaries(self):
