@@ -108,7 +108,7 @@ class FeatureExtractor:
         """
         if not STANZA_AVAILABLE:
             self.degraded_reason = (
-                "части речи белорусского текста определяются по окончаниям слов."
+                "части речи белорусского текста определяются по окончаниям слов. Результат анализа может быть некорректным."
             )
             return
 
@@ -121,9 +121,9 @@ class FeatureExtractor:
             )
             logger.info("✅ Stanza для белорусского языка загружена")
         except Exception as e:
-            logger.warning("⚠️ Не удалось загрузить Stanza для белорусского: %s", e)
+            logger.warning("⚠️ Не удалось загрузить словарь (Stanza) для белорусского: %s", e)
             self.degraded_reason = (
-                f"stanza установлена, но модель не поднялась ({e})."
+                f"Словарь (stanza) установлен, но модель не поднялась ({e})."
             )
 
     def _init_russian_dictionaries(self):
