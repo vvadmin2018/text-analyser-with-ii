@@ -8,6 +8,7 @@ main.build_authors_profiles() и был недоступен веб-прилож
 """
 import logging
 import os
+import random
 
 from src import config
 
@@ -76,3 +77,31 @@ def load_author_texts(author, base_path=None):
         texts.append(text)
 
     return texts
+
+
+def pick_sample_texts(authors, base_path=None, rng=None):
+    """По одному случайному .txt на каждого автора — для «тестовых запусков».
+
+    Возвращает {автор: путь к файлу} в порядке `authors`. Авторы без папки или
+    без .txt в ней пропускаются. Ищет только в texts/<автор>/ переданных
+    авторов, так что texts/anonim/ сюда попасть не может: тестовый запуск
+    нарочно «не слепой», автор заранее известен.
+
+    Файл выбирается, но не читается: чтение — забота вызывающего, чтобы
+    выбор не стоил обращения к диску за каждый текст корпуса (у Місько есть
+    файлы по несколько сотен тысяч символов).
+
+    Args:
+        authors: имена авторов (подпапки base_path).
+        base_path: корень с текстами (по умолчанию config.BASE_PATH).
+        rng: random.Random — подставляется в тестах ради воспроизводимости.
+    """
+    base_path = base_path or config.BASE_PATH
+    rng = rng or random
+
+    picked = {}
+    for author in authors:
+        files = list_txt_files(os.path.join(base_path, author))
+        if files:
+            picked[author] = rng.choice(files)
+    return picked
