@@ -54,6 +54,15 @@ pytest                            # tests
 - **The web app writes nothing to disk.** Charts are streamed to the browser and
   offered via `st.download_button`; profile training in the UI passes
   `save_report=False`. Only `main.py` writes to `output/`.
+- **Sample-text links are buttons.** Streamlit has no link that calls Python,
+  so the "тестовый запуск" links above the text area are `type="tertiary"`
+  buttons inside `st.container(key="sample-links")`, styled as links through
+  the `.st-key-sample-links` CSS class (stable, unlike emotion hashes). The
+  random file per author is picked once per session and cached in
+  `st.session_state.sample_paths` — picking on every rerun would swap the text
+  under the user. Labels live in `config.SAMPLE_LINK_LABELS`; a new active
+  author needs one (a test enforces it). `texts/anonim/` is never offered:
+  these are deliberately non-blind runs on training texts.
 - **Encoding fallback.** `utf-8 → cp1251 → koi8-r → latin-1`, via
   `src/io_utils.py` (used by both training and the UI's file uploader).
 - **Comments and UI strings are in Russian.** Match the surrounding style.

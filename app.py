@@ -227,6 +227,12 @@ DEFAULT_STATE = {
     "analyze_requested": False,
     "message": None,
     "last_upload": None,
+    # {название языка: {автор: путь}} — случайные тексты для ссылок «тестового
+    # запуска». Выбираются один раз за сессию: если бы выбор шёл на каждый
+    # rerun, ссылка меняла бы текст под рукой у пользователя.
+    "sample_paths": {},
+    # Какой тестовый текст сейчас лежит в форме (для подписи под полем).
+    "sample_loaded": None,
 }
 for key, value in DEFAULT_STATE.items():
     st.session_state.setdefault(key, value)
@@ -244,6 +250,49 @@ def clear_input():
 
 def request_analysis():
     st.session_state.analyze_requested = True
+
+
+def sample_paths_for(lang_name, authors):
+    """Случайные тексты корпуса для выбранного языка: по одному на автора."""
+    cache = st.session_state.sample_paths
+    if lang_name not in cache:
+        cache[lang_name] = io_utils.pick_sample_texts(
+            authors, base_path=os.path.join(APP_DIR, config.BASE_PATH))
+    return cache[lang_name]
+
+
+def load_sample(path, author):
+    """Кладёт тестовый текст в форму; дальше всё как при ручном вводе.
+
+    Анализ здесь не запускается: пользователь видит текст в поле, может его
+    поправить и сам нажимает «Анализировать».
+    """
+    name = os.path.basename(path)
+    try:
+        text = io_utils.read_text_file(path)
+    except OSError as e:
+        st.session_state.message = ("error", f"Не удалось открыть {name}: {e}")
+        return
+    if text is None:
+        st.session_state.message = (
+            "error", f"Не удалось определить кодировку файла {name}")
+        return
+    if not text.strip():
+        st.session_state.message = ("error", f"Файл {name} пустой")
+        return
+
+    st.session_state.input_text = text
+    st.session_state.message = None
+    st.session_state.sample_loaded = {"author": author, "file": name, "text": text}
+
+
+def same_text(a, b):
+    """Совпадают ли тексты с точностью до перевода строки.
+
+    Файлы корпуса бывают с CRLF, а текстовое поле в браузере склеивает их
+    в LF — без этого подпись о тестовом тексте пропадала бы сама по себе.
+    """
+    return (a or "").replace("\r\n", "\n") == (b or "").replace("\r\n", "\n")
 
 
 def forget_profiles(profile_path):
@@ -335,6 +384,32 @@ else:
             st.rerun()
 
 
+def render_sample_links():
+    """Ссылки «тестового запуска»: по одной на автора выбранного языка.
+
+    Streamlit не умеет ссылку, которая вызывает Python, поэтому это кнопки
+    type="tertiary" (без рамки и фона), оформленные как ссылки в APP_CSS по
+    ключу контейнера. Ключ, а не data-testid кнопки: он стабилен и
+    не затрагивает остальные кнопки страницы.
+    """
+    paths = sample_paths_for(lang_name, lang_cfg["authors"])
+    if not paths:
+        return
+
+    # Порядок ссылок — как в config.SAMPLE_LINK_LABELS; авторы без подписи
+    # (добавленные в корпус позже) идут в конце.
+    order = list(config.SAMPLE_LINK_LABELS)
+    ordered = sorted(paths, key=lambda a: order.index(a) if a in order else len(order))
+
+    st.caption("Тестовый запуск — случайный текст автора из корпуса:")
+    with st.container(key="sample-links"):
+        for author in ordered:
+            path = paths[author]
+            st.button(config.SAMPLE_LINK_LABELS.get(author, author_display(author)),
+                      key=f"sample_{author}", type="tertiary",
+                      on_click=load_sample, args=(path, author))
+
+
 # ============================================================
 # Анализ (выполняется до отрисовки, чтобы разметка знала о результате)
 # ============================================================
@@ -414,6 +489,8 @@ LIGHT_VARS = """
     --accent-hover: #A0760A;
     --retrain: #C4A882;
     --retrain-ink: #3A2A1A;
+    --link: #8A5A00;
+    --link-hover: #5E3D00;
 """
 
 DARK_VARS = """
@@ -428,6 +505,8 @@ DARK_VARS = """
     --accent-hover: #D8AB3C;
     --retrain: #3A3F4B;
     --retrain-ink: #E8E3D8;
+    --link: #E0B54A;
+    --link-hover: #F0CB72;
 """
 
 APP_CSS = f"""
@@ -475,6 +554,30 @@ h1 {{ margin-top: -24px; padding-top: 0; }}
     background-color: var(--accent-hover);
     border-color: var(--accent-hover);
     color: var(--accent-ink);
+}}
+
+/* ===== Ссылки «тестового запуска» =====
+   Кнопки type="tertiary", похожие на ссылки. Селектор .stButton нужен, чтобы
+   перебить общее правило .stButton button выше (фон и рамка карточки). */
+.st-key-sample-links {{ gap: 0.15rem; margin-bottom: 0.75rem; }}
+.st-key-sample-links .stButton button {{
+    background-color: transparent;
+    border: none;
+    padding: 2px 0;
+    min-height: 0;
+    height: auto;
+    justify-content: flex-start;
+    text-align: left;
+}}
+.st-key-sample-links .stButton button p {{
+    color: var(--link);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-align: left;
+}}
+.st-key-sample-links .stButton button:hover p,
+.st-key-sample-links .stButton button:focus-visible p {{
+    color: var(--link-hover);
 }}
 
 /* Радужная рамка вокруг поля ввода в фокусе — своего аналога у Streamlit нет */
@@ -637,6 +740,8 @@ with col_input:
                     st.session_state.input_text = decoded
                     st.rerun()
 
+        render_sample_links()
+
         st.text_area("Введите текст для анализа:", height=250, key="input_text",
                      placeholder="Вставьте текст на русском или белорусском языке...")
 
@@ -654,6 +759,13 @@ with col_input:
             st.error(f"Текст больше {config.MAX_TEXT_MB} МБ — анализ не запустится.")
         else:
             st.caption(counter)
+
+        loaded = st.session_state.sample_loaded
+        if loaded and same_text(loaded["text"], st.session_state.input_text):
+            st.caption(
+                f"Тестовый текст: {author_display(loaded['author'])}, "
+                f"файл {loaded['file']}. Проверка не слепая — этот текст "
+                f"входит в обучающую выборку.")
 
         col_a, col_b = st.columns(2, gap="small")
         with col_a:
