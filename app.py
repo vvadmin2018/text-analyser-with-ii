@@ -763,9 +763,7 @@ with col_input:
         loaded = st.session_state.sample_loaded
         if loaded and same_text(loaded["text"], st.session_state.input_text):
             st.caption(
-                f"Тестовый текст: {author_display(loaded['author'])}, "
-                f"файл {loaded['file']}. Проверка не слепая — этот текст "
-                f"входит в обучающую выборку.")
+                f"Тестовый текст")
 
         col_a, col_b = st.columns(2, gap="small")
         with col_a:
